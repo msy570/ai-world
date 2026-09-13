@@ -1,145 +1,84 @@
-# AI World V19 — Epoch Frontiers
+# AI World V20 — Living Nations
 
-AI World est un sandbox autonome de civilisations jouable directement dans le navigateur.
+Version majeure centrée sur la génération de mondes, les nations émergentes, le QI, les frontières organiques, les ressources liées aux biomes, la politique et les carrières dynamiques.
 
-## V19 — Epoch Frontiers
+## Génération
+- Monde automatique unique par graine.
+- Pangée, grande île, plusieurs continents, archipel, îles fracturées ou mer intérieure.
+- Biomes plus variés : plaines, forêts, savanes, marais, montagnes, désert, toundra, neige et eau.
+- Réglages séparés pour relief, niveau marin, humidité, température, rivières, diversité des biomes, montagnes, forêts, déserts et regroupement des ressources.
+- Frontières plus ou moins irrégulières selon un réglage dédié.
+- Bouton `🌊 Monde vide (eau)` : aucun pays, aucune terre, uniquement l'océan à façonner manuellement.
+- Régénération avec la même graine ou génération d'une nouvelle graine.
 
-Cette version se concentre sur la lisibilité de la carte, les frontières dynamiques, la démographie, la personnalisation et l'évolution visuelle des civilisations.
+## Ressources et environnement
+- Les ressources dépendent du biome.
+- Montagnes : minerai favorisé.
+- Forêts : bois favorisé.
+- Plaines et savanes : nourriture favorisée.
+- Déserts : très peu d'eau, davantage de certaines ressources minières/pétrolières.
+- Les rivières et zones humides améliorent l'accès à l'eau.
+- L'environnement influence directement la santé, l'adaptation et certains développements des PNJ.
+- L'intensité de cet effet est personnalisable.
 
-### Génération du monde
-- Bouton **Nouveau monde aléatoire**.
-- Bouton **Régénérer cette graine**.
-- Champ de graine visible.
-- Bouton **Nouvelles ressources** pour redistribuer les ressources et recalculer les points stratégiques.
-- Le bouton `🗺 Nouveau monde` de la barre d'outils fonctionne à nouveau.
-- Réglages des océans, du relief, de l'humidité, de la température, des rivières, des ressources et de la taille du monde.
+## Zones stratégiques
+- Les fortes concentrations de ressources et les villes prospères créent des zones stratégiques.
+- Contrôler ces zones procure de vrais avantages : nourriture, eau, bois, minerai, pétrole, biens, trésor ou puissance militaire.
+- Les bonus sont visibles dans le panneau de la civilisation.
+- Les civilisations peuvent déclarer la guerre pour conquérir ces zones.
+- Leur capture peut modifier localement les frontières.
 
-### Civilisations personnalisables
-- 1 à 8 civilisations.
-- Nom, couleur, style et doctrine.
-- Intelligence, agressivité, coopération, discipline, curiosité et fertilité configurables.
-- **Nombre d'habitants réglable individuellement pour chaque civilisation avant le scénario.**
-- Dans une partie en cours, un seul champ `Habitants` permet de fixer directement la population.
-- Suppression des anciens paramètres artificiels de population minimale / maximale.
+## QI
+- L'ancien système d'intelligence 0–100 est remplacé par le QI.
+- Échelle principale : environ 55 à 165.
+- Chaque civilisation possède un QI moyen configurable.
+- Éducation, santé, stress, environnement et accès aux infrastructures peuvent faire évoluer le niveau intellectuel.
+- Les anciennes sauvegardes sont converties automatiquement.
 
-### Démographie et fertilité V2
-- Vieillissement basé sur les années réellement simulées au lieu du nombre de ticks.
-- Grossesses basées sur les jours simulés.
-- Formation des couples recalibrée.
-- Fertilité influencée par les individus et la civilisation.
-- Nourriture, logement, stabilité, santé et stress influencent les naissances sans imposer de plafond arbitraire.
-- Bonus naturel de renouvellement pour les petites populations et les populations vieillissantes.
-- Les enfants héritent partiellement des caractéristiques de leurs parents.
-- Les colonies de départ possèdent désormais suffisamment d'agriculture pour éviter l'effondrement automatique.
-- Indicateur de renouvellement démographique dans les paramètres de civilisation.
+## Carrières dynamiques
+- Les PNJ réévaluent leur métier au cours de leur vie.
+- Un bûcheron ou ouvrier peut devenir médecin, scientifique ou ingénieur s'il étudie suffisamment et développe le QI nécessaire.
+- L'inverse est également possible si ses capacités, son environnement ou les besoins de sa société changent.
+- Le biome, l'éducation, l'expérience, les infrastructures et les besoins locaux influencent le choix du métier.
 
-### Apparence des PNJ
-- Taille visuelle par défaut portée à **140 %**.
-- Couleur principale de tenue.
-- Couleur d'accent.
-- Styles : adapté à l'époque, civil, travailleur, savant, militaire, officiel.
-- Motifs : uni, bordures, bande, bicolore.
-- Couvre-chefs : automatique, aucun, bonnet/casquette, capuche, casque, chapeau.
-- Les vêtements changent visuellement selon l'époque de la civilisation.
-- Les rôles influencent automatiquement la tenue lorsque le mode `Adapté à l'époque` est utilisé.
+## Nations émergentes
+- Un PNJ exceptionnel peut fonder son propre pays.
+- Il doit être largement supérieur à la moyenne de son pays en QI, charisme, influence et ambition.
+- Les seuils de QI, charisme, influence et ambition sont personnalisables.
+- La fréquence des sécessions est réglable.
+- Les régions éloignées ou instables favorisent les ruptures politiques.
+- Le nouveau pays récupère une partie de la population, un dirigeant, un gouvernement, une idéologie et un territoire propres.
 
-### Architecture selon les époques
-Les mêmes fonctions de bâtiment changent d'apparence avec la civilisation :
+## Politique
+Orientations disponibles :
+- économie mixte ;
+- social-démocratie ;
+- socialisme ;
+- communisme ;
+- capitalisme ;
+- technocratie ;
+- écologisme ;
+- traditionalisme.
 
-- logements tribaux en matériaux naturels ;
-- maisons antiques en pierre/enduit ;
-- maisons médiévales à colombages ;
-- logements industriels en briques ;
-- bâtiments modernes en béton/verre ;
-- architecture avancée plus technologique.
+Ces orientations ont des effets concrets sur la richesse individuelle, la redistribution, le stress, la santé, l'éducation, la recherche, l'agriculture, l'industrie, le trésor et la stabilité.
 
-Les hôpitaux, bâtiments gouvernementaux, fermes, casernes/bases militaires, usines, laboratoires, centrales et infrastructures avancées possèdent aussi des variantes visuelles adaptées à l'époque.
+## Frontières et armées
+- Les frontières ne sont plus représentées par des cercles.
+- Elles progressent selon le terrain, les villes, les murs, les cours d'eau et les positions stratégiques.
+- Leur contour est irrégulier et configurable.
+- Les villes disposent de garnisons.
+- Les armées de campagne peuvent défendre ou conquérir villes, capitales et zones stratégiques.
+- Les garnisons restent proches de leur ville.
 
-### Passage à une nouvelle époque
-Lorsqu'une civilisation entre dans une nouvelle ère :
+## Personnalisation
+- Civilisations : nom, couleur, habitants, QI moyen, doctrine, idéologie, agressivité, coopération, discipline, curiosité, fertilité, etc.
+- PNJ : QI, éducation, influence, ambition, métier, apparence et statistiques.
+- Monde : forme générale, biomes, ressources, environnement et forme des frontières.
 
-- une onde visuelle apparaît depuis son centre principal ;
-- le nom de la nouvelle époque est affiché sur la carte ;
-- les textures des bâtiments changent immédiatement ;
-- les vêtements automatiques s'adaptent à la nouvelle époque ;
-- l'événement est inscrit dans l'histoire.
-
-### Frontières V3
-- Les frontières dépendent des villes, de leur population, de leur prospérité et de leur défense.
-- Les montagnes et autres terrains difficiles ralentissent l'expansion territoriale.
-- Les murs bloquent la propagation territoriale.
-- Les points stratégiques contrôlés agissent comme de petits foyers d'influence.
-- Les frontières se déplacent après les conquêtes, l'évolution des villes et la prise de positions stratégiques.
-- Les frontières contestées sont visuellement différentes.
-
-### Points stratégiques
-Le jeu détecte automatiquement les zones importantes selon :
-
-- densité de minerai ;
-- pétrole ;
-- terres fertiles ;
-- bois ;
-- richesse des villes.
-
-Chaque zone possède une valeur stratégique.
-
-Les armées peuvent prendre le contrôle de ces positions. Leur capture modifie la frontière locale et génère un événement historique.
-
-L'IA diplomatique prend désormais en compte ces zones : une civilisation expansionniste, militariste ou agressive peut déclarer une guerre pour obtenir une région riche au lieu de combattre sans objectif précis.
-
-### Guerre et objectifs
-- Une guerre peut enregistrer un objectif stratégique.
-- Les armées se dirigent d'abord vers le point stratégique convoité.
-- Après sa capture, elles poursuivent vers les villes ennemies.
-- Les captures de villes conservent le système de résistance, assimilation et réfugiés de la V18.
-
-### Carte plus lisible
-- **Rivières : bleu continu.**
-- **Routes commerciales : vert pointillé.**
-- Routes terrestres : brun/beige.
-- Points stratégiques : zones dorées.
-- Frontières contestées clairement distinctes.
-- Les rivières et les points stratégiques peuvent être masqués séparément.
-- Les points stratégiques apparaissent aussi sur la minimap.
-
-### Légende déployable
-Le bouton `🧭 Légende` explique directement sur la carte :
-
-- frontières ;
-- frontières contestées ;
-- rivières ;
-- routes ;
-- commerce ;
-- murs ;
-- points stratégiques ;
-- armées ;
-- ressources.
-
-### Sauvegarde / replay
-- Sauvegardes V19 séparées dans IndexedDB (`ai-world-v19`).
-- Les points stratégiques et leurs propriétaires sont sauvegardés dans les replays.
-- Compatibilité de chargement avec les données manquantes d'anciennes sauvegardes grâce aux valeurs par défaut.
-
-## Contrôles
-- `Espace` : pause / lecture
-- `F` : vue monde
-- `Échap` : revenir à la sélection
-- `1` : ×1
-- `2` : ×5
-- `3` : ×10
-- `4` : ×25
-- `5` : ×100
-- Molette : zoom
-- Clic droit / molette maintenue : déplacer la caméra
-
-## Validation effectuée
-- Vérification de syntaxe JavaScript avec Node.js.
-- Aucun ID HTML en double.
-- Aucune référence DOM manquante.
-- Smoke test du moteur.
-- Test des 12 presets.
-- Test démographique accéléré sur environ 25 années simulées.
-- Test démographique accéléré sur environ 100 années simulées : la civilisation testée ne s'éteint pas.
+## Sauvegardes
+- Sauvegardes V20 dans IndexedDB `ai-world-v20`.
+- Replay V20.
+- Conversion des anciennes valeurs d'intelligence vers le nouveau QI.
 
 ## Installation GitHub Pages
-Décompresse le ZIP et place `index.html`, `style.css`, `game.js` et `README.md` à la racine du dépôt.
+Place `index.html`, `style.css`, `game.js` et `README.md` à la racine du dépôt.

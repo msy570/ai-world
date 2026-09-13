@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V19 — Epoch Frontiers</title>
+  <title>AI World V20 — Living Nations</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V19 · Epoch Frontiers</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V20 · Living Nations</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -68,6 +68,13 @@
         <div><i class="lg-ore"></i><span>Minerai</span></div>
         <div><i class="lg-oil"></i><span>Pétrole</span></div>
         <div><i class="lg-wood"></i><span>Bois</span></div>
+        <div><i class="lg-water"></i><span>Eau douce</span></div>
+        <div><i class="lg-biome lg-forest"></i><span>Forêt</span></div>
+        <div><i class="lg-biome lg-mountain"></i><span>Montagne</span></div>
+        <div><i class="lg-biome lg-desert"></i><span>Désert</span></div>
+        <div><i class="lg-biome lg-savanna"></i><span>Savane</span></div>
+        <div><i class="lg-biome lg-swamp"></i><span>Marais</span></div>
+        <div><i class="lg-biome lg-tundra"></i><span>Toundra</span></div>
       </div>
       <small>Les couleurs de fond correspondent aux territoires des civilisations. Les zones dorées sont des objectifs économiques ou militaires importants.</small>
     </div>
@@ -145,7 +152,7 @@
 
           <h3>Caractéristiques personnelles</h3>
           <div class="slider-stack compact-sliders">
-            <label>🧠 Intelligence <b id="editIntelligenceV"></b><input id="editIntelligence" type="range" min="1" max="100"></label>
+            <label>🧠 QI <b id="editIQV"></b><input id="editIQ" type="range" min="55" max="165" value="100"></label>
             <label>💪 Force <b id="editStrengthV"></b><input id="editStrength" type="range" min="1" max="100"></label>
             <label>✨ Charisme <b id="editCharismaV"></b><input id="editCharisma" type="range" min="1" max="100"></label>
             <label>⚔ Agressivité <b id="editAggressionV"></b><input id="editAggression" type="range" min="1" max="100"></label>
@@ -155,6 +162,9 @@
             <label>🛡 Courage <b id="editCourageV"></b><input id="editCourage" type="range" min="1" max="100"></label>
             <label>🙂 Humeur <b id="editMoodV"></b><input id="editMood" type="range" min="1" max="100"></label>
             <label>❤️ Santé <b id="editHealthV"></b><input id="editHealth" type="range" min="1" max="100"></label>
+            <label>🎓 Éducation <b id="editEducationV"></b><input id="editEducation" type="range" min="0" max="100"></label>
+            <label>📣 Influence <b id="editInfluenceV"></b><input id="editInfluence" type="range" min="0" max="100"></label>
+            <label>🏆 Ambition <b id="editAmbitionV"></b><input id="editAmbition" type="range" min="0" max="100"></label>
           </div>
 
           <h3>IA personnelle</h3>
@@ -256,12 +266,18 @@
               <option value="1" selected>Normale</option>
               <option value="1.5">Forte</option>
             </select></label>
+            <label>Orientation politique<select id="civIdeology">
+              <option value="mixed">Économie mixte</option><option value="socialdem">Social-démocrate</option>
+              <option value="socialist">Socialiste</option><option value="communist">Communiste</option>
+              <option value="capitalist">Capitaliste</option><option value="technocratic">Technocratique</option>
+              <option value="green">Écologiste</option><option value="traditionalist">Traditionaliste</option>
+            </select></label>
           </div>
           <div id="civIntent" class="civ-intent">Aucune priorité actuelle.</div>
         </div>
 
         <div class="slider-stack">
-          <label>🧠 Intelligence <b id="intelV"></b><input id="intel" type="range" min="0" max="100"></label>
+          <label>🧠 QI moyen <b id="avgIQV"></b><input id="avgIQ" type="range" min="70" max="145" value="100"></label>
           <label>⚔ Agressivité <b id="aggV"></b><input id="agg" type="range" min="0" max="100"></label>
           <label>🎯 Discipline <b id="discV"></b><input id="disc" type="range" min="0" max="100"></label>
           <label>🔭 Curiosité <b id="curiosityV"></b><input id="curiosity" type="range" min="0" max="100"></label>
@@ -295,6 +311,12 @@
               <option value="balanced">Équilibre</option><option value="welfare">Bien-être</option><option value="growth">Croissance</option>
               <option value="science">Science</option><option value="trade">Commerce</option><option value="military">Défense</option>
             </select></label>
+            <label>Orientation<select id="govIdeology">
+              <option value="mixed">Économie mixte</option><option value="socialdem">Social-démocrate</option>
+              <option value="socialist">Socialiste</option><option value="communist">Communiste</option>
+              <option value="capitalist">Capitaliste</option><option value="technocratic">Technocratique</option>
+              <option value="green">Écologiste</option><option value="traditionalist">Traditionaliste</option>
+            </select></label>
             <label class="full-row gov-lock-row"><span>🔒 Conserver le régime choisi</span><input id="govLock" type="checkbox"></label>
           </div>
           <div class="government-card">
@@ -302,17 +324,24 @@
             <div><small>Prochaine échéance</small><b id="govTerm">—</b></div>
             <div><small>Trésor</small><b id="govTreasury">0</b></div>
           </div>
+          <div id="ideologyEffects" class="ideology-effects"></div>
         </div>
 
         <div class="sandbox-card">
           <div class="card-title">📦 Économie réelle</div>
           <div class="stock-grid">
             <div>🌾<b id="stockFood">0</b><small>Nourriture</small></div>
+            <div>💧<b id="stockWater">0</b><small>Eau douce</small></div>
             <div>🪵<b id="stockWood">0</b><small>Bois</small></div>
             <div>⛏<b id="stockOre">0</b><small>Minerai</small></div>
             <div>🛢<b id="stockOil">0</b><small>Pétrole</small></div>
             <div>📦<b id="stockGoods">0</b><small>Biens</small></div>
           </div>
+        </div>
+
+        <div class="sandbox-card">
+          <div class="card-title">💎 Avantages stratégiques</div>
+          <div id="strategicAdvantages" class="strategic-advantages"><div class="empty">Aucune zone stratégique contrôlée.</div></div>
         </div>
 
         <h3>Villes</h3>
@@ -342,7 +371,7 @@
             </select>
           </label>
           <div class="editor-grid two">
-            <label>Nb civilisations<input id="scenarioCivs" type="number" min="1" max="8" value="1"></label>
+            <label>Nb civilisations<input id="scenarioCivs" type="number" min="1" max="12" value="1"></label>
             <label>Population par défaut<input id="scenarioPop" type="number" value="80"></label>
           </div>
           <div class="editor-grid two">
@@ -373,7 +402,7 @@
         </div>
 
         <h3>Génération</h3>
-        <p class="panel-note">La V19 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
+        <p class="panel-note">La V20 génère des mondes très différents : Pangée, continents, archipels, îles fracturées ou mers intérieures. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
           <label>Océans <b id="seaLevelV">42%</b><input id="seaLevel" type="range" min="20" max="70" value="42"></label>
           <label>Relief <b id="reliefV">55%</b><input id="relief" type="range" min="0" max="100" value="55"></label>
@@ -381,13 +410,26 @@
           <label>Température <b id="temperatureV">55%</b><input id="temperature" type="range" min="0" max="100" value="55"></label>
           <label>Rivières <b id="riversV">6</b><input id="rivers" type="range" min="0" max="16" value="6"></label>
           <label>Ressources <b id="resourceDensityV">100%</b><input id="resourceDensity" type="range" min="20" max="200" value="100"></label>
+          <label>Forme du monde <select id="worldShape">
+            <option value="auto" selected>Surprise / automatique</option><option value="pangaea">Grande masse continentale</option>
+            <option value="greatIsland">Une grande île</option><option value="continents">Plusieurs continents</option><option value="archipelago">Archipel</option>
+            <option value="shattered">Îles fracturées</option><option value="inlandSea">Mer intérieure</option>
+          </select></label>
+          <label>Diversité des biomes <b id="biomeDiversityV">70%</b><input id="biomeDiversity" type="range" min="0" max="100" value="70"></label>
+          <label>Montagnes <b id="mountainDensityV">55%</b><input id="mountainDensity" type="range" min="0" max="100" value="55"></label>
+          <label>Forêts <b id="forestDensityV">55%</b><input id="forestDensity" type="range" min="0" max="100" value="55"></label>
+          <label>Déserts <b id="desertDensityV">45%</b><input id="desertDensity" type="range" min="0" max="100" value="45"></label>
+          <label>Amas de ressources <b id="resourceClusteringV">60%</b><input id="resourceClustering" type="range" min="0" max="100" value="60"></label>
+          <label>Impact des zones riches <b id="strategicImpactV">140%</b><input id="strategicImpact" type="range" min="50" max="300" value="140"></label>
+          <label>Contours des frontières <b id="borderRoughnessV">70%</b><input id="borderRoughness" type="range" min="0" max="100" value="70"></label>
+          <label>Impact environnement PNJ <b id="environmentImpactV">100%</b><input id="environmentImpact" type="range" min="0" max="200" value="100"></label>
           <label>Taille monde <select id="worldScale">
             <option value="0.75">Grande</option>
             <option value="1" selected>Très grande</option>
             <option value="1.25">Immense</option>
           </select></label>
           <div class="editor-grid two">
-            <label>Civs au nouveau monde<input id="defaultCivCount" type="number" min="1" max="8" value="1"></label>
+            <label>Civs au nouveau monde<input id="defaultCivCount" type="number" min="1" max="12" value="1"></label>
             <label>Murs initiaux
               <select id="defaultWalls">
                 <option value="none" selected>Aucun mur</option>
@@ -403,7 +445,9 @@
             <button id="newRandomWorld" class="primary-action">🎲 Nouveau monde aléatoire</button>
             <button id="regenSameSeed">♻ Régénérer cette graine</button>
             <button id="rerollResources">⛏ Nouvelles ressources</button>
+            <button id="emptyOceanWorld">🌊 Monde vide (eau)</button>
           </div>
+          <div id="worldProfileLabel" class="world-profile-label">Monde non généré</div>
           <small>Les réglages de relief, océans, climat, taille et civilisations ci-dessus sont appliqués à la prochaine génération.</small>
         </div>
         <button id="regen" class="full primary">🗺 Générer un nouveau monde</button>
@@ -418,6 +462,7 @@
           <label><span>🤖 IA individuelle</span><input id="agentAI" type="checkbox" checked></label>
           <label><span>🏥 Bâtiments fonctionnels</span><input id="functionalBuildings" type="checkbox" checked></label>
           <label><span>🕊 Diplomatie autonome</span><input id="autoDiplomacy" type="checkbox" checked></label>
+          <label><span>🏳 PNJ peuvent fonder un pays</span><input id="emergentNations" type="checkbox" checked></label>
           <label><span>💾 Sauvegarde auto</span><input id="autoSave" type="checkbox" checked></label>
           <label><span>🏙 Économie des villes</span><input id="cityEconomy" type="checkbox" checked></label>
           <label><span>🗳 Politique & élections</span><input id="politics" type="checkbox" checked></label>
@@ -489,6 +534,13 @@
           <small id="replayInfo">Replay actif · aucun point enregistré</small>
         </div>
 
+        <div class="slider-stack founder-settings">
+          <label>Fondateur — QI au-dessus de la moyenne <b id="founderThresholdV">20</b><input id="founderThreshold" type="range" min="10" max="40" value="20"></label>
+          <label>Fondateur — écart charisme <b id="founderCharismaGapV">14</b><input id="founderCharismaGap" type="range" min="5" max="30" value="14"></label>
+          <label>Fondateur — influence minimale <b id="founderInfluenceV">82</b><input id="founderInfluence" type="range" min="60" max="98" value="82"></label>
+          <label>Fondateur — ambition minimale <b id="founderAmbitionV">84</b><input id="founderAmbition" type="range" min="60" max="98" value="84"></label>
+          <label>Chance de sécession <b id="founderChanceV">100%</b><input id="founderChance" type="range" min="25" max="200" value="100"></label>
+        </div>
         <h3>Affichage & performances</h3>
         <div class="sandbox-card performance-card">
           <div class="editor-grid two">
@@ -558,6 +610,9 @@
       <button class="tool" data-tool="forest">🌲<span>Forêt</span></button>
       <button class="tool" data-tool="mountain">⛰<span>Montagne</span></button>
       <button class="tool" data-tool="desert">🏜<span>Désert</span></button>
+      <button class="tool" data-tool="savanna">🌾<span>Savane</span></button>
+      <button class="tool" data-tool="swamp">🪷<span>Marais</span></button>
+      <button class="tool" data-tool="tundra">🧊<span>Toundra</span></button>
       <button class="tool" data-tool="snow">❄<span>Neige</span></button>
       <button class="tool" data-tool="wall">🧱<span>Mur</span></button>
       <button class="tool" data-tool="erase">🧽<span>Effacer</span></button>

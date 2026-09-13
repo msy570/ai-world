@@ -384,3 +384,26 @@ body{background:radial-gradient(circle at 50% -20%,rgba(71,122,147,.16),transpar
 .scenario-civ-card .population-row{display:flex;gap:6px;margin-top:5px;align-items:center}.scenario-civ-card .population-row label{flex:1;font-size:8px;color:#89a0a9}
 .scenario-civ-card .population-row input{height:28px}
 @media(max-width:640px){.world-gen-buttons{grid-template-columns:1fr}.map-legend{right:8px;width:min(245px,calc(100% - 16px))}}
+
+
+/* ==================================================
+   V20 — Living Nations
+   ================================================== */
+.lg-water:after{content:"●";color:#60b9da}
+.ideology-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 7px;border-radius:999px;background:#14262d;border:1px solid #35525d;color:#bcd1d8;font-size:8px}
+.scenario-civ-card .politics-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px}
+.scenario-civ-card .politics-row label{font-size:8px;color:#89a0a9}
+.strategic-benefit{font-size:8px;color:#e4c96d;margin-top:3px}
+.founder-badge{color:#f2cb66;font-weight:700}
+.world-gen-buttons{grid-template-columns:1.2fr 1fr 1fr 1fr}
+@media(max-width:760px){.world-gen-buttons{grid-template-columns:1fr 1fr}.scenario-civ-card .politics-row{grid-template-columns:1fr}}
+
+.ideology-effects{margin-top:8px;padding:8px 9px;border:1px solid #2d4650;border-radius:7px;background:#0f1b20;color:#9fb4bc;font-size:8px;line-height:1.45}
+.founder-settings{margin:8px 0 12px}
+
+.lg-biome{height:10px!important;border-radius:2px}.lg-forest{background:#3e6f49}.lg-mountain{background:#7e8078}.lg-desert{background:#bc9c5c}.lg-savanna{background:#9c9a52}.lg-swamp{background:#4f7560}.lg-tundra{background:#879a86}
+
+.world-profile-label{margin:7px 0 3px;padding:7px 9px;border-radius:7px;border:1px solid #2c444e;background:#101b20;color:#b9d4dc;font-size:9px;font-weight:700}
+.strategic-advantages{display:grid;gap:6px}
+.strategic-adv{display:grid;grid-template-columns:1fr auto;gap:2px 7px;padding:7px 8px;border:1px solid #344851;border-radius:7px;background:rgba(218,174,76,.045)}
+.strategic-adv b{font-size:9px;color:#ead18a}.strategic-adv span{font-size:8px;color:#9bb0b7}.strategic-adv small{grid-column:1/-1;font-size:8px;color:#789099}
