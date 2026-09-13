@@ -1,111 +1,32 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI World V3 — Civilisations</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-<header class="topbar">
-  <div>
-    <h1>AI World V3 — Civilisations</h1>
-    <p>Deux peuples, développement autonome, météo, guerre et monde modifiable.</p>
-  </div>
-  <div class="controls">
-    <button id="playBtn">▶ Lancer</button>
-    <button id="pauseBtn">⏸ Pause</button>
-    <button id="resetBtn">↻ Nouveau monde</button>
-    <select id="speedSelect">
-      <option value="1">×1</option><option value="3">×3</option>
-      <option value="8">×8</option><option value="20">×20</option>
-    </select>
-  </div>
-</header>
-
-<main class="layout">
-  <section class="world-card">
-    <div class="world-toolbar">
-      <button id="wallBtn" class="danger">🧱 Détruire le mur</button>
-      <button id="peaceBtn">☮ Paix</button>
-      <button id="warBtn" class="danger">⚔ Guerre</button>
-      <button id="rainBtn">🌧 Forcer pluie</button>
-      <button id="stormBtn">⛈ Tempête</button>
-      <button id="clearBtn">☀ Beau temps</button>
-    </div>
-    <canvas id="worldCanvas" width="1280" height="720"></canvas>
-    <div class="hud">
-      <span id="timeStat">Jour 1 · 08:00</span>
-      <span id="weatherStat">☀ Clair</span>
-      <span id="seasonStat">Printemps</span>
-      <span id="wallStat">Mur : intact</span>
-    </div>
-  </section>
-
-  <aside class="sidebar">
-    <section class="panel">
-      <h2>Monde</h2>
-      <label>Durée d'un jour <span id="dayLengthValue">60 s</span></label>
-      <input id="dayLength" type="range" min="20" max="180" value="60" />
-      <label>Fréquence météo <span id="weatherFreqValue">50%</span></label>
-      <input id="weatherFreq" type="range" min="0" max="100" value="50" />
-      <label>Ressources <span id="resourceValue">100%</span></label>
-      <input id="resourceAmount" type="range" min="30" max="200" value="100" />
-    </section>
-
-    <section class="panel civ blue">
-      <h2>🟦 Civilisation A — Savants</h2>
-      <label>Intelligence <span id="aIntValue">85</span></label>
-      <input id="aInt" type="range" min="0" max="100" value="85" />
-      <label>Agressivité <span id="aAggValue">25</span></label>
-      <input id="aAgg" type="range" min="0" max="100" value="25" />
-      <label>Discipline <span id="aDiscValue">75</span></label>
-      <input id="aDisc" type="range" min="0" max="100" value="75" />
-      <label>Population initiale <span id="aPopValue">70</span></label>
-      <input id="aPop" type="range" min="10" max="150" value="70" />
-      <div class="stats">
-        <span>Population <b id="aPopStat">0</b></span>
-        <span>Science <b id="aSci">0</b></span>
-        <span>Technologie <b id="aTech">0</b></span>
-        <span>Militaire <b id="aMil">0</b></span>
-      </div>
-    </section>
-
-    <section class="panel civ red">
-      <h2>🟥 Civilisation B — Barbares</h2>
-      <label>Intelligence <span id="bIntValue">25</span></label>
-      <input id="bInt" type="range" min="0" max="100" value="25" />
-      <label>Agressivité <span id="bAggValue">90</span></label>
-      <input id="bAgg" type="range" min="0" max="100" value="90" />
-      <label>Discipline <span id="bDiscValue">35</span></label>
-      <input id="bDisc" type="range" min="0" max="100" value="35" />
-      <label>Population initiale <span id="bPopValue">90</span></label>
-      <input id="bPop" type="range" min="10" max="150" value="90" />
-      <div class="stats">
-        <span>Population <b id="bPopStat">0</b></span>
-        <span>Science <b id="bSci">0</b></span>
-        <span>Technologie <b id="bTech">0</b></span>
-        <span>Militaire <b id="bMil">0</b></span>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Règles</h2>
-      <label class="check"><input id="autoWar" type="checkbox" /> Guerre automatique après chute du mur</label>
-      <label class="check"><input id="techWeapons" type="checkbox" checked /> Technologie améliore les armes</label>
-      <label class="check"><input id="weatherDamage" type="checkbox" checked /> Tempêtes dangereuses</label>
-      <label class="check"><input id="births" type="checkbox" checked /> Naissances activées</label>
-      <button id="spawnA">+10 Savants</button>
-      <button id="spawnB">+10 Barbares</button>
-    </section>
-
-    <section class="panel">
-      <h2>Journal</h2>
-      <div id="log" class="log"></div>
-    </section>
-  </aside>
-</main>
-
-<script src="game.js"></script>
-</body>
-</html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI World V4 — Civilization Sandbox</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div><h1>AI World V4</h1><small>Civilization Sandbox — crée, observe, détruis, recommence.</small></div>
+<div class="top"><button id="play">▶</button><button id="pause">⏸</button><button id="new">↻ Monde</button>
+<label>Vitesse <select id="speed"><option value="1">×1</option><option value="2">×2</option><option value="5">×5</option><option value="10">×10</option><option value="25">×25</option><option value="50">×50</option><option value="100">×100</option></select></label>
+<label>Temps <select id="timeScale"><option value="1">1 min/tick</option><option value="5">5 min/tick</option><option value="30">30 min/tick</option><option value="120">2 h/tick</option><option value="720">12 h/tick</option><option value="1440">1 jour/tick</option></select></label>
+<button id="cinema">🎥 Spectateur</button></div></header>
+<main><section class="stage"><div class="tools">
+<select id="tool"><option value="select">👆 Sélection</option><option value="wall">🧱 Mur</option><option value="erase">💥 Effacer mur</option><option value="food">🌾 Nourriture</option><option value="wood">🪵 Bois</option><option value="ore">⛏ Minerai</option><option value="water">💧 Eau</option><option value="forest">🌲 Forêt</option></select>
+<button id="breakWalls">Détruire tous les murs</button><button id="war">⚔ Guerre globale</button><button id="peace">☮ Paix</button>
+<select id="disaster"><option value="">Catastrophe…</option><option value="famine">Famine</option><option value="plague">Épidémie</option><option value="fire">Incendie</option><option value="storm">Tempête</option><option value="meteor">Météorite</option></select><button id="trigger">Déclencher</button>
+</div><canvas id="c" width="1280" height="720"></canvas>
+<div class="bar"><b id="clock"></b><span id="weather"></span><span id="season"></span><span id="selected">Aucune sélection</span></div></section>
+<aside>
+<section><h2>🌍 Monde</h2><label>Météo <input id="weatherRate" type="range" min="0" max="100" value="35"><i id="weatherRateV"></i></label>
+<label>Ressources <input id="resources" type="range" min="25" max="200" value="100"><i id="resourcesV"></i></label>
+<label>Puissance catastrophe <input id="disasterPower" type="range" min="1" max="100" value="45"><i id="disasterPowerV"></i></label>
+<label><input id="births" type="checkbox" checked> Naissances</label><label><input id="disease" type="checkbox" checked> Maladies</label><label><input id="trade" type="checkbox" checked> Commerce</label></section>
+<section><h2>🏛 Civilisations</h2><div id="civTabs"></div><button id="addCiv">＋ civilisation</button><button id="removeCiv">− civilisation</button>
+<div id="civEditor">
+<label>Nom <input id="civName" type="text"></label>
+<label>Intelligence <input id="intel" type="range" min="0" max="100"><i id="intelV"></i></label>
+<label>Agressivité <input id="agg" type="range" min="0" max="100"><i id="aggV"></i></label>
+<label>Discipline <input id="disc" type="range" min="0" max="100"><i id="discV"></i></label>
+<label>Curiosité <input id="curiosity" type="range" min="0" max="100"><i id="curiosityV"></i></label>
+<label>Coopération <input id="coop" type="range" min="0" max="100"><i id="coopV"></i></label>
+<label>Fertilité <input id="fertility" type="range" min="0" max="100"><i id="fertilityV"></i></label>
+<label>Courage <input id="courage" type="range" min="0" max="100"><i id="courageV"></i></label>
+<div class="metrics"><span>👥 <b id="pop"></b></span><span>🔬 <b id="science"></b></span><span>⚙ <b id="tech"></b></span><span>⚔ <b id="military"></b></span><span>🏘 <b id="cities"></b></span><span>💰 <b id="wealth"></b></span></div></div></section>
+<section><h2>🧬 Technologies</h2><div id="techTree" class="tree"></div></section>
+<section><h2>📜 Événements</h2><div id="log"></div></section>
+</aside></main><script src="game.js"></script></body></html>
