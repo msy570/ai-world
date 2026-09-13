@@ -1,51 +1,31 @@
-# AI World V13 — Living History
+# AI World V16 — Smart History
 
-Cette version transforme le sandbox en simulation historique observable.
+V16 corrige surtout le spam d'événements et les ralentis permanents en ×100 / 1 jour, puis optimise fortement la simulation.
 
-## Journal mondial intelligent
-Le journal général n'affiche plus les petits événements de routine. Chaque événement reçoit un score d'importance. Par défaut, seuls les événements essentiels sont conservés dans le journal : guerres, paix, changements d'ère, découvertes majeures, catastrophes importantes, morts de personnages historiques, coups d'État, grandes migrations et crises.
+## Histoire intelligente
+- fréquences automatiques beaucoup plus longues : ~10 ans, ~5 ans, ~2 ans ou ~9 mois ;
+- un passage du planificateur peut produire une période calme ;
+- ralentis avec mode Intelligent ;
+- protection haute vitesse : en ×25–×100, seuls les événements réellement historiques peuvent interrompre ;
+- délai réel minimum entre deux cinématiques ;
+- les événements non montrés restent dans le journal et apparaissent dans un bandeau non bloquant.
 
-Le seuil est réglable : Important / Essentiel / Historique uniquement.
+## Politique corrigée
+Les coups d'État ne dépendent plus simplement de l'agressivité. Le moteur utilise stabilité, approbation, troubles des villes, usure de guerre, nourriture, humeur et force du dirigeant. Une civilisation barbare peut donc rester politiquement stable.
 
-## Journal personnel
-Chaque PNJ possède son propre journal et ses souvenirs. En cliquant sur un PNJ, ouvre les onglets Journal et Souvenirs pour suivre sa vie : couple, enfants, maladie, migration, perte d'un proche, prise de pouvoir, discours, mort, etc.
+Après une prise de pouvoir, une période de grâce de plusieurs années empêche la répétition immédiate des coups. Une révolution exige une crise bien plus profonde.
 
-## Personnages importants, rassemblements et discours
-Les chefs, maires, présidents et personnages influents peuvent devenir des personnages historiques.
-Lors des moments majeurs, les habitants proches se rassemblent autour d'eux et le dirigeant prononce un discours procédural lié à la situation réelle.
+## Événements plus vivants
+Les épidémies, famines et sécheresses sont des crises qui durent. Elles évoluent puis se terminent. Les hôpitaux limitent les épidémies et les sécheresses/famines réduisent la production alimentaire. Le monde peut aussi connaître des réformes, célébrations et âges d'or.
 
-## Mode cinématique automatique
-Lors d'un événement majeur :
-- la caméra se recentre progressivement ;
-- une bannière explique l'événement ;
-- les discours apparaissent en bulles ;
-- la simulation ralentit automatiquement.
+## Optimisation
+- plus de reconstruction complète de l'interface à chaque micro-tick ;
+- simulation détaillée adaptative des PNJ en ×25–×100 ;
+- collecte des ressources via index spatial ;
+- occupation des villes via index spatial ;
+- listes technologies/bâtiments/armes mises en cache ;
+- panneaux lourds rafraîchis moins souvent ;
+- niveau de détail visuel adaptatif à grande distance ;
+- snapshots de replay réservés aux événements importants.
 
-Pendant le ralenti, 1 seconde réelle correspond à seulement quelques secondes simulées, même si la partie tournait à ×100.
-
-## Événements automatiques
-Le monde peut maintenant produire automatiquement :
-- épidémies ;
-- crises alimentaires ;
-- séismes ;
-- grands incendies ;
-- tempêtes exceptionnelles ;
-- migrations ;
-- coups d'État.
-
-Le choix dépend en partie de l'état des civilisations (humeur, agressivité, population, etc.). La fréquence est réglable.
-
-## Replays et sauvegardes
-- replay historique automatique ;
-- points de contrôle réguliers et lors des événements majeurs ;
-- timeline ;
-- lecture automatique du replay ;
-- export .aiworld ;
-- import .aiworld ;
-- sauvegarde complète locale via IndexedDB ;
-- chargement de la dernière sauvegarde.
-
-Le replay est un replay historique par points de contrôle : il permet de revoir l'évolution et de sauter aux moments importants sans enregistrer une vidéo géante.
-
-## Autres améliorations
-Tous les systèmes V10 sont conservés : personnalisation individuelle, familles, population réglable, technologies, carte géante, outils sandbox, caméra, catastrophes manuelles, bâtiments et civilisations.
+Le mode **Précision maximale** garde tous les calculs détaillés. **Auto** est recommandé. **Performance** est prévu pour les très grosses populations.

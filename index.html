@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V13 — Living History</title>
+  <title>AI World V16 — Smart History</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V13 · Living History</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V16 · Smart History</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -38,9 +38,13 @@
       <span>👥 <b id="totalPopHud">0</b></span>
       <span>🏘 <b id="totalBuildingsHud">0</b></span>
       <span>🏛 <b id="totalCivsHud">2</b></span>
+      <span>🏙 <b id="totalCitiesHud">0</b></span>
+      <span>🛡 <b id="totalArmiesHud">0</b></span>
       <span>⚔ <b id="warStateHud">Paix</b></span>
       <span>🎬 <b id="storyStateHud">Histoire</b></span>
+      <span>⚡ <b id="perfHud">Auto</b></span>
     </div>
+    <div id="historyTicker" class="history-ticker"><span id="historyTickerIcon">◆</span><div><b id="historyTickerTitle">Histoire</b><small id="historyTickerText">Les événements importants apparaîtront ici sans interrompre la simulation.</small></div></div>
     <div class="spectator-dock">
       <button id="cinemaExit">↩ Quitter spectateur</button>
       <button id="cinemaSettings">⚙ Paramètres</button>
@@ -51,6 +55,12 @@
       <span id="eraGlobal">🪵 Tribal</span>
       <span id="worldPop">👥 0</span>
       <span id="selected">Aucune sélection</span>
+      <span id="autosaveState">💾 Auto</span>
+    </div>
+
+    <div id="minimapWrap" class="minimap-wrap">
+      <canvas id="minimap" width="240" height="140"></canvas>
+      <div class="minimap-label">CARTE</div>
     </div>
 
     <aside id="inspector" class="inspector">
@@ -65,6 +75,7 @@
       <div class="tabs">
         <button class="it active" data-itab="detailTab">Détails</button>
         <button class="it" data-itab="civTab">Civilisation</button>
+        <button class="it" data-itab="societyTab">Société</button>
         <button class="it" data-itab="worldTab">Monde</button>
       </div>
 
@@ -117,11 +128,31 @@
             <label>❤️ Santé <b id="editHealthV"></b><input id="editHealth" type="range" min="1" max="100"></label>
           </div>
 
+          <h3>IA personnelle</h3>
+          <div class="editor-grid two">
+            <label>Objectif de vie<select id="editLifeGoal">
+              <option value="family">Fonder une famille</option>
+              <option value="wealth">Devenir riche</option>
+              <option value="knowledge">Chercher le savoir</option>
+              <option value="power">Obtenir du pouvoir</option>
+              <option value="explore">Explorer le monde</option>
+              <option value="protect">Protéger les siens</option>
+              <option value="peace">Vivre en paix</option>
+            </select></label>
+            <label>Autonomie<select id="editAutonomy">
+              <option value="0.55">Faible</option>
+              <option value="1" selected>Normale</option>
+              <option value="1.35">Forte</option>
+              <option value="1.7">Très forte</option>
+            </select></label>
+          </div>
+
           <div class="editor-actions">
+            <button id="followPerson">🎥 Suivre</button>
             <button id="healPerson">❤️ Soigner</button>
             <button id="rerollPerson">🎲 Randomiser</button>
             <button id="duplicatePerson">👥 Dupliquer</button>
-            <button id="makeLeader">👑 En faire un dirigeant</button>
+            <button id="makeLeader">👑 Dirigeant</button>
           </div>
         </div>
 
@@ -176,6 +207,28 @@
           <label>Couleur<input id="civColor" type="color"></label>
           <label>Style<select id="civStyle"><option value="balanced">Équilibré</option><option value="nature">Nature</option><option value="military">Militaire</option><option value="science">Scientifique</option><option value="wealth">Commercial</option></select></label>
         </div>
+        <div class="sandbox-card civ-ai-card">
+          <div class="card-title">🤖 IA stratégique</div>
+          <div class="editor-grid two">
+            <label>Doctrine<select id="civDoctrine">
+              <option value="adaptive">Adaptative</option>
+              <option value="peaceful">Pacifique</option>
+              <option value="scientific">Scientifique</option>
+              <option value="commercial">Commerciale</option>
+              <option value="expansionist">Expansionniste</option>
+              <option value="militarist">Militariste</option>
+              <option value="isolationist">Isolationniste</option>
+            </select></label>
+            <label>Autonomie<select id="civAutonomy">
+              <option value="0">Off</option>
+              <option value="0.55">Faible</option>
+              <option value="1" selected>Normale</option>
+              <option value="1.5">Forte</option>
+            </select></label>
+          </div>
+          <div id="civIntent" class="civ-intent">Aucune priorité actuelle.</div>
+        </div>
+
         <div class="slider-stack">
           <label>🧠 Intelligence <b id="intelV"></b><input id="intel" type="range" min="0" max="100"></label>
           <label>⚔ Agressivité <b id="aggV"></b><input id="agg" type="range" min="0" max="100"></label>
@@ -191,6 +244,49 @@
         <div id="buildingList" class="unlock-grid"></div>
         <h3>Armement</h3>
         <div id="weaponList" class="unlock-grid"></div>
+      </section>
+
+
+      <section id="societyTab" class="itab">
+        <div class="society-hero">
+          <div><small>ÉTAT ACTUEL</small><b id="societyCivName">Civilisation</b><span id="societySummary">Société en formation</span></div>
+          <div class="approval-ring"><b id="govApproval">70%</b><small>approbation</small></div>
+        </div>
+
+        <div class="sandbox-card">
+          <div class="card-title">🏛 Gouvernement</div>
+          <div class="editor-grid two">
+            <label>Régime<select id="govType">
+              <option value="Tribu">Tribu</option><option value="Cité-État">Cité-État</option><option value="Monarchie">Monarchie</option>
+              <option value="République">République</option><option value="Fédération">Fédération</option>
+            </select></label>
+            <label>Politique<select id="govPolicy">
+              <option value="balanced">Équilibre</option><option value="welfare">Bien-être</option><option value="growth">Croissance</option>
+              <option value="science">Science</option><option value="trade">Commerce</option><option value="military">Défense</option>
+            </select></label>
+          </div>
+          <div class="government-card">
+            <div><small>Dirigeant</small><b id="govLeader">—</b></div>
+            <div><small>Prochaine échéance</small><b id="govTerm">—</b></div>
+            <div><small>Trésor</small><b id="govTreasury">0</b></div>
+          </div>
+        </div>
+
+        <div class="sandbox-card">
+          <div class="card-title">📦 Économie réelle</div>
+          <div class="stock-grid">
+            <div>🌾<b id="stockFood">0</b><small>Nourriture</small></div>
+            <div>🪵<b id="stockWood">0</b><small>Bois</small></div>
+            <div>⛏<b id="stockOre">0</b><small>Minerai</small></div>
+            <div>🛢<b id="stockOil">0</b><small>Pétrole</small></div>
+            <div>📦<b id="stockGoods">0</b><small>Biens</small></div>
+          </div>
+        </div>
+
+        <h3>Villes</h3>
+        <div id="cityList" class="city-list"></div>
+        <h3>Diplomatie</h3>
+        <div id="diplomacyList" class="diplomacy-list"></div>
       </section>
 
       <section id="worldTab" class="itab">
@@ -218,7 +314,7 @@
         </div>
 
         <h3>Génération</h3>
-        <p class="panel-note">La V8 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
+        <p class="panel-note">La V14 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
           <label>Océans <b id="seaLevelV">42%</b><input id="seaLevel" type="range" min="20" max="70" value="42"></label>
           <label>Relief <b id="reliefV">55%</b><input id="relief" type="range" min="0" max="100" value="55"></label>
@@ -241,36 +337,59 @@
           <label><span>🦠 Maladies</span><input id="disease" type="checkbox" checked></label>
           <label><span>💱 Commerce</span><input id="trade" type="checkbox" checked></label>
           <label><span>🏗 Construction auto</span><input id="autoBuild" type="checkbox" checked></label>
+          <label><span>🤖 IA individuelle</span><input id="agentAI" type="checkbox" checked></label>
+          <label><span>🏥 Bâtiments fonctionnels</span><input id="functionalBuildings" type="checkbox" checked></label>
+          <label><span>🕊 Diplomatie autonome</span><input id="autoDiplomacy" type="checkbox" checked></label>
+          <label><span>💾 Sauvegarde auto</span><input id="autoSave" type="checkbox" checked></label>
+          <label><span>🏙 Économie des villes</span><input id="cityEconomy" type="checkbox" checked></label>
+          <label><span>🗳 Politique & élections</span><input id="politics" type="checkbox" checked></label>
+          <label><span>🛡 Armées organisées</span><input id="armyAI" type="checkbox" checked></label>
+          <label><span>🗺 Territoires visibles</span><input id="showTerritories" type="checkbox" checked></label>
+          <label><span>🛣 Routes visibles</span><input id="showRoads" type="checkbox" checked></label>
+          <label><span>🚩 Armées visibles</span><input id="showArmies" type="checkbox" checked></label>
+          <label><span>🎬 Réalisateur automatique</span><input id="autoDirector" type="checkbox" checked></label>
         </div>
         <h3>Histoire automatique</h3>
         <div class="sandbox-card history-settings">
           <div class="toggle-stack">
             <label><span>🌪 Événements automatiques</span><input id="autoEvents" type="checkbox" checked></label>
             <label><span>🎥 Ralenti des moments majeurs</span><input id="autoCinematic" type="checkbox" checked></label>
+            <label><span>⚡ Protection haute vitesse</span><input id="turboStoryGuard" type="checkbox" checked></label>
             <label><span>💬 Discours & rassemblements</span><input id="autoSpeeches" type="checkbox" checked></label>
             <label><span>⏺ Enregistrer le replay</span><input id="recordReplay" type="checkbox" checked></label>
           </div>
           <div class="editor-grid two">
             <label>Fréquence événements<select id="eventFrequency">
-              <option value="220">Rare</option>
-              <option value="110" selected>Normale</option>
-              <option value="55">Fréquente</option>
-              <option value="28">Chaotique</option>
+              <option value="3600">Rare · ~10 ans</option>
+              <option value="1800" selected>Normale · ~5 ans</option>
+              <option value="720">Fréquente · ~2 ans</option>
+              <option value="270">Chaotique · ~9 mois</option>
             </select></label>
             <label>Journal mondial<select id="journalImportance">
               <option value="55">Important</option>
               <option value="70" selected>Essentiel</option>
               <option value="85">Historique uniquement</option>
             </select></label>
+            <label>Mode ralenti<select id="cinematicMode">
+              <option value="smart" selected>Intelligent</option>
+              <option value="historic">Historique uniquement</option>
+              <option value="all">Tous les événements majeurs</option>
+            </select></label>
             <label>Seuil ralenti<select id="cinematicImportance">
-              <option value="65">Important</option>
-              <option value="78" selected>Majeur</option>
-              <option value="90">Historique</option>
+              <option value="70">Important</option>
+              <option value="82" selected>Majeur</option>
+              <option value="92">Historique</option>
+            </select></label>
+            <label>Intervalle min. ralenti<select id="cinematicCooldown">
+              <option value="12000">12 s</option>
+              <option value="25000" selected>25 s</option>
+              <option value="45000">45 s</option>
+              <option value="70000">70 s</option>
             </select></label>
             <label>Durée cinématique<select id="cinematicDuration">
               <option value="4500">4,5 s</option>
-              <option value="7000" selected>7 s</option>
-              <option value="10000">10 s</option>
+              <option value="6500" selected>6,5 s</option>
+              <option value="9000">9 s</option>
             </select></label>
           </div>
         </div>
@@ -287,7 +406,22 @@
           <small id="replayInfo">Replay actif · aucun point enregistré</small>
         </div>
 
-        <h3>Affichage</h3>
+        <h3>Affichage & performances</h3>
+        <div class="sandbox-card performance-card">
+          <div class="editor-grid two">
+            <label>Optimisation<select id="performanceMode">
+              <option value="auto" selected>Auto</option>
+              <option value="exact">Précision maximale</option>
+              <option value="performance">Performance</option>
+            </select></label>
+            <label>PNJ en vue lointaine<select id="farNpcDetail">
+              <option value="full">Tous</option>
+              <option value="auto" selected>Adaptatif</option>
+              <option value="low">Réduit</option>
+            </select></label>
+          </div>
+          <small>En Auto, le moteur allège les calculs invisibles en ×25–×100 tout en conservant l'horloge du monde.</small>
+        </div>
         <div class="slider-stack">
           <label>Taille PNJ <b id="npcVisualScaleV">120%</b><input id="npcVisualScale" type="range" min="80" max="180" value="120"></label>
           <label>Taille bâtiments <b id="buildingVisualScaleV">125%</b><input id="buildingVisualScale" type="range" min="80" max="180" value="125"></label>
@@ -301,6 +435,25 @@
     </aside>
 
     <div id="eventToast" class="toast"></div>
+
+    <div id="populationBrowser" class="population-browser">
+      <div class="browser-head">
+        <div><b>👥 Population</b><small id="browserCount">0 PNJ</small></div>
+        <button id="closePopulationBrowser">✕</button>
+      </div>
+      <div class="browser-filters">
+        <input id="personSearch" type="search" placeholder="Nom, rôle...">
+        <select id="personCivFilter"><option value="-1">Toutes civilisations</option></select>
+        <select id="personRoleFilter"><option value="all">Tous rôles</option><option value="leaders">Dirigeants</option><option value="historical">Importants</option><option value="sick">Malades</option></select>
+      </div>
+      <div id="populationList" class="population-list"></div>
+    </div>
+
+    <div id="cityBrowser" class="city-browser">
+      <div class="browser-head"><div><b>🏙 Villes du monde</b><small id="cityBrowserCount">0 villes</small></div><button id="closeCityBrowser">✕</button></div>
+      <div class="browser-filters"><select id="cityCivFilter"><option value="-1">Toutes civilisations</option></select></div>
+      <div id="cityBrowserList" class="population-list"></div>
+    </div>
   </main>
 
   <div class="bottom-ui">
@@ -308,6 +461,7 @@
       <button class="cat active" data-cat="worldTools">🌍<span>Monde</span></button>
       <button class="cat" data-cat="lifeTools">👥<span>Vie</span></button>
       <button class="cat" data-cat="civTools">🏛<span>Civilisations</span></button>
+      <button class="cat" data-cat="societyTools">🏙<span>Sociétés</span></button>
       <button class="cat" data-cat="warTools">⚔<span>Guerre</span></button>
       <button class="cat" data-cat="disasterTools">☄<span>Catastrophes</span></button>
       <button class="cat" data-cat="powerTools">✨<span>Pouvoirs</span></button>
@@ -345,6 +499,16 @@
       <button id="new" class="tool">🗺<span>Nouveau monde</span></button>
     </div>
 
+
+    <div class="tool-row" id="societyTools">
+      <button id="showSociety" class="tool">🏛<span>Société</span></button>
+      <button id="showCities" class="tool">🏙<span>Villes</span></button>
+      <button id="foundCity" class="tool">🏗<span>Fonder ville</span></button>
+      <button id="toggleTerritories" class="tool">🗺<span>Territoires</span></button>
+      <button id="toggleRoads" class="tool">🛣<span>Routes</span></button>
+      <button id="toggleArmies" class="tool">🚩<span>Armées</span></button>
+    </div>
+
     <div class="tool-row" id="warTools">
       <button id="war" class="tool danger">⚔<span>Guerre</span></button>
       <button id="peace" class="tool success">☮<span>Paix</span></button>
@@ -375,6 +539,9 @@
       <button id="showWorld" class="tool">🌍<span>Monde</span></button>
       <button id="showCiv" class="tool">🏛<span>Civilisation</span></button>
       <button id="showSelected" class="tool">👤<span>Sélection</span></button>
+      <button id="showPopulation" class="tool">👥<span>Population</span></button>
+      <button id="toggleMinimap" class="tool">🗺<span>Mini-carte</span></button>
+      <button id="showStats" class="tool">📊<span>Statistiques</span></button>
     </div>
   </div>
 
@@ -387,6 +554,23 @@
     <small>ÉVÉNEMENT MAJEUR</small>
     <b id="cinematicTitle">Moment historique</b>
     <span id="cinematicText"></span>
+    <button id="skipCinematic">Passer</button>
+  </div>
+
+
+  <div id="statsPanel" class="stats-panel">
+    <div class="replay-head"><div><b>📊 Observatoire du monde</b><small id="statsSub">Évolution historique</small></div><button id="closeStats">✕</button></div>
+    <div class="stats-controls">
+      <button class="stats-mode active" data-stat="population">Population</button>
+      <button class="stats-mode" data-stat="science">Science</button>
+      <button class="stats-mode" data-stat="wealth">Richesse</button>
+      <button class="stats-mode" data-stat="military">Militaire</button>
+    </div>
+    <canvas id="statsChart" width="720" height="250"></canvas>
+    <div class="stats-lower">
+      <div><b>⭐ Figures historiques</b><div id="hallOfFame" class="hall-of-fame"></div></div>
+      <div><b>🌍 Records</b><div id="worldRecords" class="world-records"></div></div>
+    </div>
   </div>
 
   <div id="replayPanel" class="replay-panel">

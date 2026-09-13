@@ -252,3 +252,83 @@ body.story-cinematic .inspector{opacity:.45;transition:.25s}
   .cinematic-banner{top:54px}
   .replay-panel{bottom:72px}
 }
+
+
+/* =========================================================
+   V14 — Deep Sandbox
+   ========================================================= */
+.minimap-wrap{
+  position:absolute;right:12px;bottom:94px;z-index:18;width:240px;height:140px;
+  border:1px solid #3b5159;border-radius:8px;overflow:hidden;background:#091115;
+  box-shadow:0 8px 28px rgba(0,0,0,.38);transition:.2s
+}
+.minimap-wrap.hidden{opacity:0;pointer-events:none;transform:translateY(8px)}
+#minimap{display:block;width:100%;height:100%;cursor:crosshair}
+.minimap-label{
+  position:absolute;left:5px;top:4px;padding:2px 5px;border-radius:4px;
+  background:rgba(5,11,14,.74);font-size:7px;letter-spacing:.15em;color:#9bb0b8;pointer-events:none
+}
+.population-browser{
+  position:absolute;left:12px;top:54px;bottom:94px;z-index:32;width:330px;
+  background:rgba(11,19,23,.97);border:1px solid #344b55;border-radius:10px;
+  box-shadow:0 16px 45px rgba(0,0,0,.48);display:none;overflow:hidden
+}
+.population-browser.open{display:flex;flex-direction:column}
+.browser-head{display:flex;justify-content:space-between;align-items:center;padding:10px 11px;border-bottom:1px solid #293e47}
+.browser-head div{display:flex;flex-direction:column}.browser-head small{font-size:8px;color:#76909a;margin-top:2px}
+.browser-head button{border:0;background:transparent;color:#99adb5;cursor:pointer}
+.browser-filters{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px;border-bottom:1px solid #253943}
+.browser-filters input{grid-column:1/-1}
+.browser-filters input,.browser-filters select{
+  min-width:0;border:1px solid #314951;background:#101d22;color:#dce8ec;border-radius:6px;padding:7px;font-size:9px
+}
+.population-list{overflow:auto;padding:6px}
+.person-row{
+  display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:7px;
+  margin:3px 0;border:1px solid transparent;border-radius:7px;background:#111f25;cursor:pointer
+}
+.person-row:hover{background:#192c34;border-color:#36515c}
+.person-row .avatar-dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:12px;border:2px solid rgba(255,255,255,.12)}
+.person-row b{display:block;font-size:10px;color:#edf5f7}.person-row small{display:block;font-size:8px;color:#8299a2;margin-top:2px}
+.person-row .importance{font-size:8px;color:#d8b657}
+.civ-intent{
+  margin-top:7px;padding:7px 8px;border-left:3px solid #58839a;border-radius:4px;
+  background:#102027;color:#a9c0c9;font-size:9px;line-height:1.4
+}
+.cinematic-banner button{
+  pointer-events:auto;margin-top:8px;border:1px solid #655c3e;background:#252416;color:#d9c178;
+  border-radius:6px;padding:5px 10px;font-size:8px;cursor:pointer
+}
+.cinematic-banner button:hover{background:#37341e}
+#autosaveState{color:#7fa996}
+body.following #selected:after{content:" · 🎥 suivi";color:#7db3cf}
+@media(max-width:850px){
+  .minimap-wrap{width:180px;height:105px}
+  .population-browser{width:min(330px,88vw)}
+}
+
+
+/* =========================================================
+   V15 — Emergent Empires
+   ========================================================= */
+.society-hero{
+  display:flex;align-items:center;justify-content:space-between;margin:2px 0 9px;padding:11px;
+  border:1px solid #354e59;border-radius:10px;background:linear-gradient(135deg,#172a33,#101a20)
+}
+.society-hero>div:first-child{display:flex;flex-direction:column}.society-hero small{font-size:7px;letter-spacing:.16em;color:#73909c}
+.society-hero b{font-size:14px;color:#f2f7f8;margin:2px 0}.society-hero span{font-size:9px;color:#95abb4}
+.approval-ring{width:62px;height:62px;border-radius:50%;display:grid;place-content:center;text-align:center;border:5px solid #4e8a69;background:#0d181d;box-shadow:inset 0 0 0 2px #1b2b31}
+.approval-ring b{font-size:13px}.approval-ring small{font-size:7px;letter-spacing:0;color:#71908a}
+.government-card{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:5px;margin-top:7px}.government-card div{padding:7px;background:#101e24;border:1px solid #2a414a;border-radius:6px}
+.government-card small,.stock-grid small{display:block;font-size:7px;color:#78909a}.government-card b{display:block;font-size:9px;color:#e7eff2;margin-top:2px}
+.stock-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.stock-grid div{text-align:center;padding:7px 3px;background:#101e24;border:1px solid #2b414a;border-radius:7px;font-size:12px}.stock-grid b{display:block;color:#eef5f7;font-size:11px;margin:2px 0}
+.city-list,.diplomacy-list{display:grid;gap:5px;margin-bottom:9px}.city-card,.diplo-row{padding:8px;border:1px solid #2e4650;border-radius:7px;background:#111f25;cursor:pointer}.city-card:hover{background:#182c34;border-color:#456673}.city-card .city-head,.diplo-row{display:flex;justify-content:space-between;align-items:center}.city-card b,.diplo-row b{color:#edf5f7;font-size:10px}.city-card small,.diplo-row small{color:#78919b;font-size:8px}.city-stats{display:flex;gap:7px;margin-top:5px;color:#9fb4bc;font-size:8px}
+.city-browser{position:absolute;left:355px;top:54px;bottom:94px;z-index:33;width:315px;background:rgba(11,19,23,.97);border:1px solid #344b55;border-radius:10px;box-shadow:0 16px 45px rgba(0,0,0,.48);display:none;overflow:hidden}.city-browser.open{display:flex;flex-direction:column}
+.city-browser .browser-filters{grid-template-columns:1fr}.city-row{padding:8px;margin:3px 0;border:1px solid transparent;border-radius:7px;background:#111f25;cursor:pointer}.city-row:hover{background:#192c34;border-color:#36515c}.city-row b{display:block;color:#edf5f7;font-size:10px}.city-row small{display:block;color:#8299a2;font-size:8px;margin-top:3px}.city-row .city-bar{height:3px;background:#263b43;margin-top:6px;border-radius:4px;overflow:hidden}.city-row .city-bar i{display:block;height:100%;background:#5d9a72}
+.city-label{position:absolute;pointer-events:none}
+@media(max-width:950px){.city-browser{left:12px;width:min(315px,88vw)}.stock-grid{grid-template-columns:repeat(3,1fr)}}
+
+.stats-panel{position:fixed;z-index:99;left:50%;top:50%;transform:translate(-50%,-47%);width:min(820px,94vw);max-height:78vh;overflow:auto;background:rgba(11,19,23,.98);border:1px solid #38525d;border-radius:12px;box-shadow:0 22px 70px rgba(0,0,0,.58);display:none}.stats-panel.open{display:block}.stats-controls{display:flex;gap:5px;padding:9px 11px 0}.stats-mode{border:1px solid #314a54;background:#14252c;color:#91a8b1;border-radius:6px;padding:6px 9px;font-size:9px;cursor:pointer}.stats-mode.active{background:#274758;color:#fff;border-color:#56809a}#statsChart{display:block;width:calc(100% - 22px);height:250px;margin:9px 11px;border:1px solid #263e47;border-radius:8px;background:#0b1519}.stats-lower{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 11px 12px}.stats-lower>div{padding:9px;border:1px solid #293f48;border-radius:8px;background:#101d22}.stats-lower>b,.stats-lower div>b{font-size:10px;color:#e9f1f3}.hall-entry,.record-entry{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.045);font-size:8px;color:#91a8b1}.hall-entry b,.record-entry b{font-size:9px;color:#dfe9ec}.hall-entry:last-child,.record-entry:last-child{border-bottom:0}@media(max-width:680px){.stats-lower{grid-template-columns:1fr}#statsChart{height:190px}}
+
+/* V16 Smart History */
+.history-ticker{position:absolute;z-index:28;top:42px;left:50%;transform:translate(-50%,-10px);min-width:300px;max-width:min(700px,72vw);display:flex;gap:9px;align-items:center;padding:7px 11px;border-radius:8px;border:1px solid rgba(103,132,144,.42);background:rgba(10,18,22,.88);box-shadow:0 8px 25px rgba(0,0,0,.3);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:.22s}.history-ticker.show{opacity:1;transform:translate(-50%,0)}.history-ticker>span{font-size:15px}.history-ticker div{min-width:0}.history-ticker b{display:block;color:#eef5f7;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-ticker small{display:block;color:#8ca2ab;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}.history-ticker.historic{border-color:rgba(218,104,119,.6);background:rgba(34,17,21,.9)}.history-ticker.major{border-color:rgba(210,170,73,.55);background:rgba(31,27,15,.9)}.performance-card small{display:block;color:#718b95;font-size:8px;line-height:1.45;margin-top:6px}#perfHud{color:#8fc2a8}body.story-cinematic .history-ticker{opacity:0}@media(max-width:700px){.history-ticker{top:38px;min-width:240px;max-width:86vw}}
