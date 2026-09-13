@@ -29,3 +29,21 @@ Les épidémies, famines et sécheresses sont des crises qui durent. Elles évol
 - snapshots de replay réservés aux événements importants.
 
 Le mode **Précision maximale** garde tous les calculs détaillés. **Auto** est recommandé. **Performance** est prévu pour les très grosses populations.
+
+
+## V16.1 — correction du temps
+Le calendrier utilise maintenant un compteur absolu de minutes simulées puis reconstruit année, saison, jour et heure.
+Cela corrige les valeurs décimales/instables du compteur et les gros sauts mal normalisés.
+
+- Jour affiché clairement comme `Jx/90` dans la saison.
+- Heure toujours entière et correctement formatée.
+- Les anciennes sauvegardes restent compatibles.
+- Les replays conservent le nouveau compteur absolu.
+- Le ralenti cinématique avance maintenant à quelques secondes simulées par seconde réelle au lieu de plusieurs minutes.
+
+
+## V16.2 — date lisible
+L'interface affiche désormais une date immédiatement compréhensible :
+`📅 Année 12 · Été · Jour 43 · 🕒 08:00`.
+
+Le journal et les replays utilisent eux aussi `Année · Saison · Jour`.
