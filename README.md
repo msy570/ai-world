@@ -1,24 +1,27 @@
-# AI World V6 — Evolution Sandbox
+# AI World V8 — Living World
 
-Cette version pousse fortement la génération du monde et l’évolution.
+Corrections et améliorations de la V8 :
 
-Principales nouveautés :
-- génération logique du terrain : océans, plages, plaines, forêts, montagnes, déserts, neige ;
-- paramètres personnalisables : niveau des océans, relief, humidité, température, nombre de rivières, densité des ressources ;
-- rivières générées depuis les zones élevées ;
-- éditeur de carte : ajouter/enlever eau, plaines, forêts, montagnes, désert, neige, ressources et murs ;
-- textures pixel-art plus détaillées ;
-- bâtiments débloqués selon l’époque : hutte, ferme, maison, atelier, caserne, hôtel de ville, hôpital, usine, laboratoire, centrale, aéroport, centre stratégique ;
-- PNJ spéciaux selon l’époque : chef de tribu, guérisseur, guerrier, maire, médecin, chevalier, président, scientifique, ingénieur, pilote ;
-- six ères : Tribal, Antique, Médiévale, Industrielle, Moderne, Avancée ;
-- armement progressif : bâton, lance, épée, arc, arbalète, mousquet, fusil, mitrailleuse, blindé, hélicoptère, missile stratégique ;
-- fiche détaillée de PNJ/bâtiment au clic ;
-- catastrophes, météo, maladies, commerce, guerre, croissance et construction automatique ;
-- vitesse de simulation ×1 à ×100 et vitesse du temps indépendante ;
-- mode Spectateur.
+- correction du mode Spectateur : un bouton "Quitter spectateur" reste toujours accessible ;
+- bouton "Paramètres" directement dans le mode Spectateur ;
+- touche Échap pour sortir du mode Spectateur ;
+- carte agrandie à 7200 × 4200 unités ;
+- caméra avec zoom à la molette ;
+- déplacement de caméra avec clic droit ou molette maintenue ;
+- boutons "Vue monde" et "Recentrer" ;
+- rendu optimisé : seuls les éléments visibles sont dessinés ;
+- génération de continents reconstruite avec bruit cohérent multi-échelles ;
+- deux passes de lissage pour éviter les biomes en damier ;
+- humidité, température et altitude générées séparément ;
+- plages, plaines, forêts, déserts, montagnes et neige répartis de façon plus cohérente ;
+- rivières dessinées comme des lignes continues et arrondies ;
+- textures moins "gros pixels" : arbres arrondis, herbes, vagues, dunes, montagnes, ombres ;
+- PNJ dessinés avec formes plus douces et ombres ;
+- bâtiments plus détaillés ;
+- tous les systèmes de V7 sont conservés : couples, familles, naissances, héritage, habitats, évolution, armement, technologies, catastrophes, etc.
 
-Installation :
-1. Décompresse le ZIP.
-2. Remplace index.html, style.css, game.js et README.md dans ton dépôt GitHub.
-3. Commit changes.
-4. Recharge GitHub Pages après quelques minutes.
+Contrôles :
+- Molette : zoom.
+- Clic droit + glisser : déplacer la caméra.
+- Clic molette + glisser : déplacer la caméra.
+- Échap : quitter le mode Spectateur.
