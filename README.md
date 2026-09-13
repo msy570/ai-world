@@ -1,16 +1,28 @@
-# AI World V2 — Pixel Life
+# AI World V3 — Civilisations
 
-## Nouveautés V2
-- Terrain plus fin : cellules de 20 px
-- Textures pixel-art détaillées pour herbe, forêt, désert, neige et eau
-- Ressources redessinées en pixel-art
-- PNJ humanoïdes pixelisés
-- Sexe M/F
-- Âges variés : enfants, adultes, personnes âgées
-- Teintes de peau, cheveux, coiffures et vêtements variés
-- 6 métiers visibles : fermier, bûcheron, mineur, chasseur, soldat, marchand
-- Équipement visuel selon le métier
-- Le métier influence déjà la recherche de ressources
-- Les PNJ vieillissent pendant la simulation
+Cette version ajoute un vrai mode d'expérience entre deux civilisations.
 
-Remplace les fichiers de la V1 sur GitHub par ceux de ce dossier.
+Fonctions principales :
+- Deux civilisations distinctes, avec paramètres indépendants.
+- Mur central destructible/reconstructible.
+- Paix ou guerre manuelle.
+- Option de guerre automatique quand le mur tombe.
+- Intelligence, agressivité, discipline et population initiale modifiables.
+- Développement autonome : science, technologie et militaire.
+- Le développement dépend de l'intelligence, de la discipline, des métiers et de la population.
+- Métiers : fermier, constructeur, savant, soldat, mineur.
+- Système de combat.
+- Technologie pouvant améliorer les armes.
+- Temps avec heures et jours.
+- Saisons.
+- Météo : soleil, pluie, tempête, neige.
+- Tempêtes pouvant blesser les habitants.
+- Ressources et naissances modifiables.
+- Journal des événements.
+- Multiplicateur de vitesse.
+
+Pour installer :
+1. Décompresse le ZIP.
+2. Remplace index.html, style.css, game.js et README.md dans ton dépôt GitHub.
+3. Commit changes.
+4. Attends environ 1 à 3 minutes puis recharge GitHub Pages.
