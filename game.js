@@ -122,6 +122,16 @@ let R={recording:true,snapshots:[],events:[],lastCaptureYear:0,liveState:null,pl
 let followPersonId=null,lastAutosaveReal=0,minimapDirty=true;
 const TERR={canvas:document.createElement("canvas"),ctx:null,owners:null,contested:null,dirty:true};
 TERR.ctx=TERR.canvas.getContext("2d");
+const FAST_TERRAIN={canvas:document.createElement("canvas"),ctx:null,dirty:true};
+FAST_TERRAIN.ctx=FAST_TERRAIN.canvas.getContext("2d",{alpha:false});
+function markTerrainCacheDirty(){FAST_TERRAIN.dirty=true}
+function rebuildFastTerrain(){
+ if(!S?.grid?.length||!COLS||!ROWS)return;
+ FAST_TERRAIN.canvas.width=COLS;FAST_TERRAIN.canvas.height=ROWS;
+ let img=FAST_TERRAIN.ctx.createImageData(COLS,ROWS),data=img.data;
+ for(let i=0;i<S.grid.length;i++){let hex=biomeColors[S.grid[i]?.type]||"#6d965b",n=parseInt(hex.slice(1),16),o=i*4;data[o]=(n>>16)&255;data[o+1]=(n>>8)&255;data[o+2]=n&255;data[o+3]=255}
+ FAST_TERRAIN.ctx.putImageData(img,0,0);FAST_TERRAIN.dirty=false
+}
 
 function simStamp(){const sn=["Printemps","Été","Automne","Hiver"][S.season]||"";return `Année ${S.year} · ${sn} · Jour ${S.day}`}
 function simDayIndex(){return (S.year-1)*360+S.season*90+(S.day-1)}
@@ -573,7 +583,7 @@ function reset(options={}){
  S={run:true,tick:0,minute:480,day:1,year:1,season:0,elapsedMinutes:480,lastDemographyDay:0,weather:"Clair",war:false,wars:[],walls:[],grid:[],rivers:[],res:[],strategicZones:[],buildings:[],people:[],cities:[],roads:[],tradeRoutes:[],armies:[],history:[],legends:[],crises:[],civs:[]};
  SP.last=-1;SP.people.clear();SP.res.clear();SP.buildings.clear();SP.walls.clear();
  let blankOcean=options?.blankOcean===true;
- if(blankOcean){generateEmptyOcean();minimapDirty=true}else{generateTerrain();minimapDirty=true;seedResources();seedWorldRng(701);seedStartingCivilizations(startCivs,startCivs===1?90:60)}
+ if(blankOcean){generateEmptyOcean();minimapDirty=true;markTerrainCacheDirty()}else{generateTerrain();minimapDirty=true;markTerrainCacheDirty();seedResources();seedWorldRng(701);seedStartingCivilizations(startCivs,startCivs===1?90:60)}
  rebuildRoads();ensureGovernments();updateCities(true);
  if(!blankOcean&&typeof rebuildStrategicZones==="function")rebuildStrategicZones(true);
  if(($("defaultWalls")?.value||"none")==="dividers")generateDividerWalls();
@@ -1078,7 +1088,14 @@ function tint(hex,delta){
  return `rgb(${r},${g},${b})`;
 }
 function drawTerrain(){
- const vb=visibleBounds(),gx0=clamp(Math.floor(vb.l/CELL)-1,0,COLS-1),gx1=clamp(Math.ceil(vb.r/CELL)+1,0,COLS-1),gy0=clamp(Math.floor(vb.t/CELL)-1,0,ROWS-1),gy1=clamp(Math.ceil(vb.b/CELL)+1,0,ROWS-1);
+ const vb=visibleBounds();
+ if(camera.zoom<.36){
+   if(FAST_TERRAIN.dirty||FAST_TERRAIN.canvas.width!==COLS||FAST_TERRAIN.canvas.height!==ROWS)rebuildFastTerrain();
+   ctx.save();ctx.imageSmoothingEnabled=true;ctx.drawImage(FAST_TERRAIN.canvas,0,0,W,H);ctx.restore();
+   if($("showRivers")?.checked){ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="rgba(54,132,167,.80)";ctx.lineWidth=5;for(const river of S.rivers){if(!river.length)continue;ctx.beginPath();ctx.moveTo(river[0].x,river[0].y);for(let i=2;i<river.length;i+=2)ctx.lineTo(river[i].x,river[i].y);ctx.lineTo(river.at(-1).x,river.at(-1).y);ctx.stroke()}ctx.restore()}
+   return
+ }
+ const gx0=clamp(Math.floor(vb.l/CELL)-1,0,COLS-1),gx1=clamp(Math.ceil(vb.r/CELL)+1,0,COLS-1),gy0=clamp(Math.floor(vb.t/CELL)-1,0,ROWS-1),gy1=clamp(Math.ceil(vb.b/CELL)+1,0,ROWS-1);
  for(let gy=gy0;gy<=gy1;gy++)for(let gx=gx0;gx<=gx1;gx++){
    let q=S.grid[gy*COLS+gx],px=gx*CELL,py=gy*CELL;
    let variation=Math.round((hash(gx,gy,900)-.5)*10);
@@ -1334,7 +1351,9 @@ function draw(){
  applyCamera();drawTerrain();drawTerritories();drawStrategicZones();drawTradeRoutes();drawRoads();
  let vb=visibleBounds();
  const visible=o=>o.x>vb.l-80&&o.x<vb.r+80&&o.y>vb.t-80&&o.y<vb.b+80;
- let farMode=$("farNpcDetail")?.value||"auto",pStep=1,rStep=1;if(farMode==="low"){pStep=camera.zoom<.7?3:1;rStep=camera.zoom<.7?3:1}else if(farMode==="auto"){if(camera.zoom<.34&&S.people.length>700)pStep=S.people.length>1800?4:2;if(camera.zoom<.3&&S.res.length>1000)rStep=3}
+ let farMode=$("farNpcDetail")?.value||"auto",overview=camera.zoom<.34,deepOverview=camera.zoom<.25,pStep=1,rStep=1;
+ if(farMode==="low"){pStep=overview?5:camera.zoom<.7?3:1;rStep=overview?7:camera.zoom<.7?3:1}
+ else if(farMode==="auto"){if(overview)pStep=S.people.length>2200?8:S.people.length>900?5:3;if(overview)rStep=S.res.length>1800?10:S.res.length>900?6:3}
  for(let i=0;i<S.res.length;i+=rStep){let r=S.res[i];if(visible(r)){
    if(r.type==="wood"){ctx.fillStyle="#755232";ctx.fillRect(r.x-4,r.y-2,8,4);ctx.fillStyle="#8a6540";ctx.fillRect(r.x-2,r.y-3,4,6)}
    else if(r.type==="food"){ctx.fillStyle="#d6b44a";ctx.beginPath();ctx.arc(r.x,r.y,3.8,0,Math.PI*2);ctx.fill();ctx.fillStyle="#7aa050";ctx.fillRect(r.x-1,r.y-5,2,2)}
@@ -1342,15 +1361,17 @@ function draw(){
    else if(r.type==="water"){ctx.fillStyle="#5eb7d7";ctx.beginPath();ctx.arc(r.x,r.y,3.6,0,Math.PI*2);ctx.fill();ctx.strokeStyle="rgba(220,247,255,.5)";ctx.stroke()}
    else {ctx.fillStyle="#a8b1b5";ctx.beginPath();ctx.arc(r.x,r.y,3.5,0,Math.PI*2);ctx.fill()}
  }}
- for(const b of S.buildings)if(visible(b))drawBuilding(b);
- for(const w of S.walls)if(visible(w)){
-   ctx.fillStyle="#766f66";ctx.fillRect(w.x-4,w.y,8,21);
-   ctx.fillStyle="#9a9389";ctx.fillRect(w.x-5,w.y,10,4);
-   ctx.fillStyle="#67615a";ctx.fillRect(w.x-2,w.y+6,4,2);
+ if(overview){
+   let bStep=deepOverview?3:2;for(let i=0;i<S.buildings.length;i+=bStep){let b=S.buildings[i];if(!visible(b))continue;ctx.fillStyle=S.civs[b.ci]?.color||"#b8c4c8";ctx.fillRect(b.x-3,b.y-3,6,6)}
+   let wStep=deepOverview?5:3;ctx.fillStyle="rgba(130,124,115,.78)";for(let i=0;i<S.walls.length;i+=wStep){let w=S.walls[i];if(visible(w))ctx.fillRect(w.x-2,w.y-2,4,4)}
+   for(let i=0;i<S.people.length;i+=pStep){let p=S.people[i];if(!visible(p))continue;ctx.fillStyle=S.civs[p.ci]?.color||"#e2e9eb";ctx.beginPath();ctx.arc(p.x,p.y,deepOverview?2.2:2.8,0,Math.PI*2);ctx.fill()}
+ }else{
+   for(const b of S.buildings)if(visible(b))drawBuilding(b);
+   for(const w of S.walls)if(visible(w)){ctx.fillStyle="#766f66";ctx.fillRect(w.x-4,w.y,8,21);ctx.fillStyle="#9a9389";ctx.fillRect(w.x-5,w.y,10,4);ctx.fillStyle="#67615a";ctx.fillRect(w.x-2,w.y+6,4,2)}
+   for(let i=0;i<S.people.length;i+=pStep){let p=S.people[i];if(visible(p))drawPerson(p)}
  }
- for(let i=0;i<S.people.length;i+=pStep){let p=S.people[i];if(visible(p))drawPerson(p)}
- if(selected?.type==="person"&&visible(selected.obj)&&pStep>1)drawPerson(selected.obj);
- drawArmies();drawCityLabels();drawEraTransitions();drawNightLights();drawWeather();drawLighting();drawSpeechBubbles();drawMinimap();
+ if(selected?.type==="person"&&visible(selected.obj)&&pStep>1&&!overview)drawPerson(selected.obj);
+ drawArmies();drawCityLabels();drawEraTransitions();if(!overview)drawNightLights();drawWeather();drawLighting();if(!overview)drawSpeechBubbles();drawMinimap();
 }
 function screenToWorld(clientX,clientY){
  let r=c.getBoundingClientRect(),cx=(clientX-r.left)/r.width*c.width,cy=(clientY-r.top)/r.height*c.height;
@@ -1808,7 +1829,7 @@ async function dbPut(key,val){let db=await openDB();return new Promise((res,rej)
 async function dbGet(key){let db=await openDB();return new Promise((res,rej)=>{let tx=db.transaction("saves","readonly"),q=tx.objectStore("saves").get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
 function fullSavePayload(){return {version:20,seed,settings:{sea:$("seaLevel").value,relief:$("relief").value,humidity:$("humidity").value,temp:$("temperature").value,rivers:$("rivers").value,shape:$("worldShape")?.value,biomeDiversity:$("biomeDiversity")?.value,mountains:$("mountainDensity")?.value,forests:$("forestDensity")?.value,deserts:$("desertDensity")?.value,resourceClustering:$("resourceClustering")?.value,strategicImpact:$("strategicImpact")?.value,borderRoughness:$("borderRoughness")?.value,environmentImpact:$("environmentImpact")?.value},S:structuredClone(S),history:structuredClone(story.worldEvents),replay:{snapshots:structuredClone(R.snapshots),events:structuredClone(R.events)}}}
 function restorePayload(data){
- if(!data?.S)return false;seed=data.seed??seed;S=data.S;SP.last=-1;SP.people.clear();SP.res.clear();SP.buildings.clear();SP.walls.clear();ensureElapsedTime();normalizeCalendarFromMinutes(S.elapsedMinutes);S.cities=S.cities||[];for(const c of S.cities){c.originalCi=c.originalCi??c.ci;c.resistance=c.resistance??0;c.influenceScale=c.influenceScale??1}markTerritoryDirty();S.roads=S.roads||[];S.tradeRoutes=S.tradeRoutes||[];S.strategicZones=S.strategicZones||[];S.lastDemographyDay=Number.isFinite(S.lastDemographyDay)?S.lastDemographyDay:simDayIndex();S.armies=S.armies||[];S.wars=S.wars||[];S.history=S.history||[];S.legends=S.legends||[];S.crises=S.crises||[];for(let i=0;i<S.civs.length;i++){let old=S.civs[i]||{},d=civ(i);if(old.avgIQ==null&&old.intel!=null)old.avgIQ=clamp(Math.round(75+old.intel*.5),70,145);S.civs[i]={...d,...old,ideology:old.ideology||"mixed",stock:{...d.stock,...(old.stock||{})},relations:old.relations||{}}}for(const city of S.cities){city.stock=city.stock||{};city.stock.water=city.stock.water??35}for(const p of S.people){if(p.iq==null){let legacy=p.intelligence??50;p.iq=clamp(Math.round(70+legacy*.6),55,165)}p.baseIQ=p.baseIQ??p.iq;p.hydration=p.hydration??82;p.environmentAdapt=p.environmentAdapt??0;p.outfitAccent=p.outfitAccent||"#d9c27a";p.outfitStyle=p.outfitStyle||"auto";p.outfitPattern=p.outfitPattern||"plain";p.headwear=p.headwear||"auto";p.nextFamilyCheckDay=p.nextFamilyCheckDay??(simDayIndex()+Math.floor(rnd(5,35)));p.lastCareerDay=p.lastCareerDay??simDayIndex()}for(const z of S.strategicZones||[])z.shape=z.shape||zoneShapeFor(z.id,z.value);S.worldProfile=S.worldProfile||{shape:"legacy",label:"Ancien monde",resourceRoll:0};S.lastLifeDevelopmentDay=Number.isFinite(S.lastLifeDevelopmentDay)?S.lastLifeDevelopmentDay:simDayIndex();S.lastNationCheckDay=Number.isFinite(S.lastNationCheckDay)?S.lastNationCheckDay:simDayIndex();ensureGovernments();refreshGlobalWar();if(S.grid?.length){let ratio=7200/4200;let cells=S.grid.length;let approxRows=Math.max(1,Math.round(Math.sqrt(cells/ratio))),approxCols=Math.max(1,Math.round(cells/approxRows));if(approxRows*approxCols===cells){ROWS=approxRows;COLS=approxCols;W=COLS*CELL;H=ROWS*CELL;$("mapSizeLabel").textContent=`${W}×${H}`}}minimapDirty=true;story.worldEvents=data.history||[];R.snapshots=data.replay?.snapshots||[];R.events=data.replay?.events||[];R.recording=$("recordReplay").checked;R.lastCaptureYear=S.year;
+ if(!data?.S)return false;seed=data.seed??seed;S=data.S;SP.last=-1;SP.people.clear();SP.res.clear();SP.buildings.clear();SP.walls.clear();ensureElapsedTime();normalizeCalendarFromMinutes(S.elapsedMinutes);S.cities=S.cities||[];for(const c of S.cities){c.originalCi=c.originalCi??c.ci;c.resistance=c.resistance??0;c.influenceScale=c.influenceScale??1}markTerritoryDirty();S.roads=S.roads||[];S.tradeRoutes=S.tradeRoutes||[];S.strategicZones=S.strategicZones||[];S.lastDemographyDay=Number.isFinite(S.lastDemographyDay)?S.lastDemographyDay:simDayIndex();S.armies=S.armies||[];S.wars=S.wars||[];S.history=S.history||[];S.legends=S.legends||[];S.crises=S.crises||[];for(let i=0;i<S.civs.length;i++){let old=S.civs[i]||{},d=civ(i);if(old.avgIQ==null&&old.intel!=null)old.avgIQ=clamp(Math.round(75+old.intel*.5),70,145);S.civs[i]={...d,...old,ideology:old.ideology||"mixed",stock:{...d.stock,...(old.stock||{})},relations:old.relations||{}}}for(const city of S.cities){city.stock=city.stock||{};city.stock.water=city.stock.water??35}for(const p of S.people){if(p.iq==null){let legacy=p.intelligence??50;p.iq=clamp(Math.round(70+legacy*.6),55,165)}p.baseIQ=p.baseIQ??p.iq;p.hydration=p.hydration??82;p.environmentAdapt=p.environmentAdapt??0;p.outfitAccent=p.outfitAccent||"#d9c27a";p.outfitStyle=p.outfitStyle||"auto";p.outfitPattern=p.outfitPattern||"plain";p.headwear=p.headwear||"auto";p.nextFamilyCheckDay=p.nextFamilyCheckDay??(simDayIndex()+Math.floor(rnd(5,35)));p.lastCareerDay=p.lastCareerDay??simDayIndex()}for(const z of S.strategicZones||[])z.shape=z.shape||zoneShapeFor(z.id,z.value);S.worldProfile=S.worldProfile||{shape:"legacy",label:"Ancien monde",resourceRoll:0};S.lastLifeDevelopmentDay=Number.isFinite(S.lastLifeDevelopmentDay)?S.lastLifeDevelopmentDay:simDayIndex();S.lastNationCheckDay=Number.isFinite(S.lastNationCheckDay)?S.lastNationCheckDay:simDayIndex();ensureGovernments();refreshGlobalWar();if(S.grid?.length){let ratio=7200/4200;let cells=S.grid.length;let approxRows=Math.max(1,Math.round(Math.sqrt(cells/ratio))),approxCols=Math.max(1,Math.round(cells/approxRows));if(approxRows*approxCols===cells){ROWS=approxRows;COLS=approxCols;W=COLS*CELL;H=ROWS*CELL;$("mapSizeLabel").textContent=`${W}×${H}`}}minimapDirty=true;markTerrainCacheDirty();story.worldEvents=data.history||[];R.snapshots=data.replay?.snapshots||[];R.events=data.replay?.events||[];R.recording=$("recordReplay").checked;R.lastCaptureYear=S.year;
  selected=null;active=0;renderWorldJournal();tabs();editor();update();fitWorld();draw();updateReplayUI();return true
 }
 $("saveSimulation").onclick=async()=>{try{await dbPut("latest",fullSavePayload());showToast("💾 Simulation sauvegardée")}catch(e){console.error(e);showToast("⚠ Sauvegarde impossible")}};
@@ -1881,7 +1902,7 @@ c.addEventListener("pointerdown",e=>{
  if(["food","wood","ore","oil"].includes(t)){for(let i=0;i<br*8;i++)S.res.push({type:t,x:wx+rnd(-br*28,br*28),y:wy+rnd(-br*28,br*28)});return}
  if(t==="wall"){paint.on=true;paint.changed=false;paint.tool="wall";paint.lastX=wx;paint.lastY=wy;paintWallLine(wx,wy,wx,wy,br);return}
  if(t==="erase"){paint.on=true;paint.changed=false;paint.tool="erase";paint.lastX=wx;paint.lastY=wy;eraseAt(wx,wy,br);return}
- if(["water","plains","forest","mountain","desert","savanna","swamp","tundra","snow"].includes(t)){let gx=Math.floor(wx/CELL),gy=Math.floor(wy/CELL);for(let dy=-br;dy<=br;dy++)for(let dx=-br;dx<=br;dx++){let xx=gx+dx,yy=gy+dy;if(xx>=0&&yy>=0&&xx<COLS&&yy<ROWS&&dx*dx+dy*dy<=br*br)S.grid[yy*COLS+xx].type=t}minimapDirty=true;markTerritoryDirty()}
+ if(["water","plains","forest","mountain","desert","savanna","swamp","tundra","snow"].includes(t)){let gx=Math.floor(wx/CELL),gy=Math.floor(wy/CELL);for(let dy=-br;dy<=br;dy++)for(let dx=-br;dx<=br;dx++){let xx=gx+dx,yy=gy+dy;if(xx>=0&&yy>=0&&xx<COLS&&yy<ROWS&&dx*dx+dy*dy<=br*br)S.grid[yy*COLS+xx].type=t}minimapDirty=true;markTerrainCacheDirty();markTerritoryDirty()}
 });
 c.addEventListener("pointermove",e=>{
  if(paint.on){
@@ -1903,6 +1924,26 @@ c.addEventListener("wheel",e=>{
  camera.zoom=newZoom;camera.x=before.x-cx/camera.zoom;camera.y=before.y-cy/camera.zoom;clampCamera();
 },{passive:false});
 
+
+const HUD_INFO={
+ map:{icon:"🌍",title:"Taille du monde",text:"Dimensions totales de la carte. Plus la carte est grande, plus une vue globale doit afficher d'éléments.",value:()=>`${W} × ${H} · ${COLS}×${ROWS} cases`},
+ population:{icon:"👥",title:"Population mondiale",text:"Nombre total de PNJ vivants, toutes civilisations confondues.",value:()=>`${S.people.length} habitants`},
+ buildings:{icon:"🏘",title:"Bâtiments",text:"Logements, fermes, hôpitaux, bases militaires, laboratoires, usines et autres constructions.",value:()=>`${S.buildings.length} bâtiments`},
+ civilizations:{icon:"🏛",title:"Civilisations / pays",text:"Nombre d'États actuellement présents. Des pays peuvent aussi naître par sécession.",value:()=>`${S.civs.length} civilisation${S.civs.length>1?"s":""}`},
+ cities:{icon:"🏙",title:"Villes",text:"Centres urbains qui produisent, stockent des ressources, défendent leur territoire et peuvent être conquis.",value:()=>`${S.cities.length} villes`},
+ armies:{icon:"🛡",title:"Armées",text:"Formations militaires organisées : garnisons et armées de campagne.",value:()=>`${S.armies.length} armée${S.armies.length>1?"s":""}`},
+ war:{icon:"⚔",title:"Guerres",text:"État des conflits entre civilisations.",value:()=>S.wars.length?`${S.wars.length} guerre${S.wars.length>1?"s":""} active${S.wars.length>1?"s":""}`:"Paix mondiale"},
+ story:{icon:"🎬",title:"Histoire automatique",text:"Suit les événements importants et gère le journal historique et les cinématiques.",value:()=>story.cinematic?"Cinématique en cours":`${story.worldEvents.length} événements enregistrés`},
+ performance:{icon:"⚡",title:"Performance",text:"Mode de calcul/rendu. En vue très éloignée, le jeu utilise maintenant un terrain en cache et des PNJ/bâtiments simplifiés.",value:()=>`${$("performanceMode")?.value||"auto"} · zoom ${camera.zoom.toFixed(2)}`}
+};
+function showHudInfo(el){
+ let info=HUD_INFO[el?.dataset?.hudInfo],box=$("hudInfoTooltip");if(!info||!box)return;
+ box.innerHTML=`<div class="hud-tip-head"><span class="hud-tip-icon">${info.icon}</span><b>${info.title}</b></div><div>${info.text}</div><div class="hud-tip-value">${info.value()}</div><small>Survole un autre symbole pour voir sa signification.</small>`;
+ let wr=document.querySelector(".world-wrap").getBoundingClientRect(),r=el.getBoundingClientRect(),left=clamp(r.left-wr.left+r.width/2-122,8,wr.width-253),top=r.bottom-wr.top+8;
+ box.style.left=`${left}px`;box.style.top=`${top}px`;box.classList.add("show")
+}
+function hideHudInfo(){$("hudInfoTooltip")?.classList.remove("show")}
+document.querySelectorAll(".sandbox-strip [data-hud-info]").forEach(el=>{el.addEventListener("mouseenter",()=>showHudInfo(el));el.addEventListener("mouseleave",hideHudInfo);el.addEventListener("focus",()=>showHudInfo(el));el.addEventListener("blur",hideHudInfo)});
 
 function updateMapTooltip(e){
  let box=$("mapTooltip");if(!box||!$("showHoverInfo")?.checked||drag.on||paint.on||document.body.classList.contains("cinema")){box?.classList.remove("show");return}

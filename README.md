@@ -82,3 +82,10 @@ Ces orientations ont des effets concrets sur la richesse individuelle, la redist
 
 ## Installation GitHub Pages
 Place `index.html`, `style.css`, `game.js` et `README.md` à la racine du dépôt.
+
+
+## V20.1 — HUD & Performance
+- Fiches explicatives au survol des 9 symboles de la barre d'état.
+- Cache bitmap du terrain à grande distance.
+- Niveau de détail automatique pour PNJ, bâtiments, murs et ressources quand la caméra est très dézoomée.
+- Bulles et lumières nocturnes ignorées en vue globale pour réduire le coût graphique.

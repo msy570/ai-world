@@ -407,3 +407,10 @@ body{background:radial-gradient(circle at 50% -20%,rgba(71,122,147,.16),transpar
 .strategic-advantages{display:grid;gap:6px}
 .strategic-adv{display:grid;grid-template-columns:1fr auto;gap:2px 7px;padding:7px 8px;border:1px solid #344851;border-radius:7px;background:rgba(218,174,76,.045)}
 .strategic-adv b{font-size:9px;color:#ead18a}.strategic-adv span{font-size:8px;color:#9bb0b7}.strategic-adv small{grid-column:1/-1;font-size:8px;color:#789099}
+
+/* V20.1 — HUD explanations + overview performance */
+.sandbox-strip{pointer-events:none}
+.sandbox-strip span[data-hud-info]{pointer-events:auto;cursor:help;transition:.12s ease}
+.sandbox-strip span[data-hud-info]:hover,.sandbox-strip span[data-hud-info]:focus{outline:none;border-color:rgba(145,205,226,.38);background:rgba(12,24,29,.95);transform:translateY(-1px)}
+.hud-info-tooltip{position:absolute;z-index:32;display:none;width:245px;pointer-events:none;padding:10px 11px;border-radius:10px;background:rgba(7,14,18,.96);border:1px solid rgba(133,191,213,.32);box-shadow:0 12px 32px rgba(0,0,0,.42);backdrop-filter:blur(10px);color:#c7d8de;font-size:9px;line-height:1.45}
+.hud-info-tooltip.show{display:block}.hud-info-tooltip .hud-tip-head{display:flex;gap:7px;align-items:center;margin-bottom:5px}.hud-info-tooltip .hud-tip-icon{font-size:18px}.hud-info-tooltip b{font-size:11px;color:#f2f7f8}.hud-info-tooltip small{display:block;color:#8fa6ae;margin-top:4px}.hud-info-tooltip .hud-tip-value{margin-top:6px;padding:5px 7px;border-radius:6px;background:#111f25;color:#dce9ec;border:1px solid #273d46}

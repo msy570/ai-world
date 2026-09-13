@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V20 — Living Nations</title>
+  <title>AI World V20.1 — HUD & Performance</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V20 · Living Nations</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V20.1 · HUD & Performance</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -34,16 +34,17 @@
 
   <main class="world-wrap">
     <div class="sandbox-strip">
-      <span>🌍 <b id="mapSizeLabel">7200×4200</b></span>
-      <span>👥 <b id="totalPopHud">0</b></span>
-      <span>🏘 <b id="totalBuildingsHud">0</b></span>
-      <span>🏛 <b id="totalCivsHud">1</b></span>
-      <span>🏙 <b id="totalCitiesHud">0</b></span>
-      <span>🛡 <b id="totalArmiesHud">0</b></span>
-      <span>⚔ <b id="warStateHud">Paix</b></span>
-      <span>🎬 <b id="storyStateHud">Histoire</b></span>
-      <span>⚡ <b id="perfHud">Auto</b></span>
+      <span data-hud-info="map" tabindex="0">🌍 <b id="mapSizeLabel">7200×4200</b></span>
+      <span data-hud-info="population" tabindex="0">👥 <b id="totalPopHud">0</b></span>
+      <span data-hud-info="buildings" tabindex="0">🏘 <b id="totalBuildingsHud">0</b></span>
+      <span data-hud-info="civilizations" tabindex="0">🏛 <b id="totalCivsHud">1</b></span>
+      <span data-hud-info="cities" tabindex="0">🏙 <b id="totalCitiesHud">0</b></span>
+      <span data-hud-info="armies" tabindex="0">🛡 <b id="totalArmiesHud">0</b></span>
+      <span data-hud-info="war" tabindex="0">⚔ <b id="warStateHud">Paix</b></span>
+      <span data-hud-info="story" tabindex="0">🎬 <b id="storyStateHud">Histoire</b></span>
+      <span data-hud-info="performance" tabindex="0">⚡ <b id="perfHud">Auto</b></span>
     </div>
+    <div id="hudInfoTooltip" class="hud-info-tooltip"></div>
     <div id="historyTicker" class="history-ticker"><span id="historyTickerIcon">◆</span><div><b id="historyTickerTitle">Histoire</b><small id="historyTickerText">Les événements importants apparaîtront ici sans interrompre la simulation.</small></div></div>
     <div class="spectator-dock">
       <button id="cinemaExit">↩ Quitter spectateur</button>
