@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V8 — Living World</title>
+  <title>AI World V13 — Living History</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V8 · Living World</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V13 · Living History</span></div>
 
     <div class="hud-center">
-      <button id="pause" class="hud-btn">⏸</button>
+      <button id="pause" class="hud-btn" title="Pause">⏸</button>
       <button id="play" class="hud-btn active">▶</button>
       <select id="speed" class="hud-select">
         <option value="1">×1</option><option value="2">×2</option><option value="5">×5</option>
@@ -33,6 +33,14 @@
   </header>
 
   <main class="world-wrap">
+    <div class="sandbox-strip">
+      <span>🌍 <b id="mapSizeLabel">7200×4200</b></span>
+      <span>👥 <b id="totalPopHud">0</b></span>
+      <span>🏘 <b id="totalBuildingsHud">0</b></span>
+      <span>🏛 <b id="totalCivsHud">2</b></span>
+      <span>⚔ <b id="warStateHud">Paix</b></span>
+      <span>🎬 <b id="storyStateHud">Histoire</b></span>
+    </div>
     <div class="spectator-dock">
       <button id="cinemaExit">↩ Quitter spectateur</button>
       <button id="cinemaSettings">⚙ Paramètres</button>
@@ -62,15 +70,111 @@
 
       <section id="detailTab" class="itab active">
         <div id="detailCard" class="detail-card"><div class="empty">Clique sur un élément du monde.</div></div>
+        <div id="personLifePanel" class="person-life-panel hidden">
+          <div class="life-tabs">
+            <button class="life-tab active" data-life="personJournal">📖 Journal</button>
+            <button class="life-tab" data-life="personMemory">🧠 Souvenirs</button>
+          </div>
+          <div id="personJournal" class="life-content active"></div>
+          <div id="personMemory" class="life-content"></div>
+        </div>
+
+        <div id="personEditor" class="entity-editor hidden">
+          <div class="editor-title"><b>✏ Personnaliser ce PNJ</b><span>Les changements sont immédiats.</span></div>
+
+          <div class="editor-grid two">
+            <label>Prénom<input id="editFirst" type="text"></label>
+            <label>Nom<input id="editLast" type="text"></label>
+            <label>Âge<input id="editAge" type="number" min="0" max="120"></label>
+            <label>Sexe<select id="editSex"><option value="F">Femme</option><option value="M">Homme</option></select></label>
+            <label class="full-row">Rôle<input id="editRole" type="text" placeholder="Ex. Médecin, Président, Artisan…"></label>
+            <label>Civilisation<select id="editCiv"></select></label>
+            <label>Taille<select id="editScale"><option value="0.85">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option><option value="1.3">Très grande</option></select></label>
+          </div>
+
+          <h3>Apparence</h3>
+          <div class="editor-grid three">
+            <label>Peau<input id="editSkin" type="color"></label>
+            <label>Cheveux<input id="editHair" type="color"></label>
+            <label>Vêtements<input id="editClothes" type="color"></label>
+            <label class="full-row">Coiffure<select id="editHairStyle">
+              <option value="short">Courte</option><option value="long">Longue</option><option value="curly">Bouclée</option>
+              <option value="mohawk">Crête</option><option value="bald">Chauve</option>
+            </select></label>
+          </div>
+
+          <h3>Caractéristiques personnelles</h3>
+          <div class="slider-stack compact-sliders">
+            <label>🧠 Intelligence <b id="editIntelligenceV"></b><input id="editIntelligence" type="range" min="1" max="100"></label>
+            <label>💪 Force <b id="editStrengthV"></b><input id="editStrength" type="range" min="1" max="100"></label>
+            <label>✨ Charisme <b id="editCharismaV"></b><input id="editCharisma" type="range" min="1" max="100"></label>
+            <label>⚔ Agressivité <b id="editAggressionV"></b><input id="editAggression" type="range" min="1" max="100"></label>
+            <label>🔭 Curiosité <b id="editCuriosityV"></b><input id="editCuriosity" type="range" min="1" max="100"></label>
+            <label>👶 Fertilité <b id="editFertilityV"></b><input id="editFertility" type="range" min="1" max="100"></label>
+            <label>🤝 Loyauté <b id="editLoyaltyV"></b><input id="editLoyalty" type="range" min="1" max="100"></label>
+            <label>🛡 Courage <b id="editCourageV"></b><input id="editCourage" type="range" min="1" max="100"></label>
+            <label>🙂 Humeur <b id="editMoodV"></b><input id="editMood" type="range" min="1" max="100"></label>
+            <label>❤️ Santé <b id="editHealthV"></b><input id="editHealth" type="range" min="1" max="100"></label>
+          </div>
+
+          <div class="editor-actions">
+            <button id="healPerson">❤️ Soigner</button>
+            <button id="rerollPerson">🎲 Randomiser</button>
+            <button id="duplicatePerson">👥 Dupliquer</button>
+            <button id="makeLeader">👑 En faire un dirigeant</button>
+          </div>
+        </div>
+
+        <div id="buildingEditor" class="entity-editor hidden">
+          <div class="editor-title"><b>🏗 Personnaliser le bâtiment</b><span>Nom, taille et teinte.</span></div>
+          <div class="editor-grid two">
+            <label class="full-row">Nom<input id="editBuildingName" type="text"></label>
+            <label>Taille<select id="editBuildingScale"><option value="0.85">Petite</option><option value="1">Normale</option><option value="1.2">Grande</option><option value="1.4">Très grande</option></select></label>
+            <label>Toit<input id="editBuildingRoof" type="color"></label>
+          </div>
+        </div>
       </section>
 
       <section id="civTab" class="itab">
         <div id="civTabs" class="civ-tabs"></div>
         <label class="field"><span>Nom</span><input id="civName" type="text"></label>
+
+        <div class="sandbox-card">
+          <div class="card-title">🎛 Population & croissance</div>
+          <div class="editor-grid two">
+            <label>Population cible<input id="targetPopulation" type="number" min="0" max="2000" value="100"></label>
+            <label>Population max<input id="populationCap" type="number" min="10" max="5000" value="500"></label>
+            <label>Taux natalité<select id="birthRateMode">
+              <option value="0.45">Très faible</option>
+              <option value="0.75">Faible</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.4">Élevé</option>
+              <option value="2">Très élevé</option>
+            </select></label>
+            <label>Âge initial<select id="ageProfile">
+              <option value="balanced">Équilibré</option>
+              <option value="young">Jeune</option>
+              <option value="adult">Adultes</option>
+              <option value="mixed">Très mélangé</option>
+            </select></label>
+          </div>
+          <div class="population-actions">
+            <button id="applyPopulation">Appliquer la population</button>
+            <button id="add10Pop">+10</button>
+            <button id="add100Pop">+100</button>
+            <button id="remove10Pop">−10</button>
+            <button id="remove100Pop">−100</button>
+          </div>
+        </div>
+
         <div class="metrics">
           <div><small>Population</small><b id="pop">0</b></div><div><small>Ère</small><b id="era">Tribal</b></div>
           <div><small>Science</small><b id="science">0</b></div><div><small>Tech</small><b id="tech">0</b></div>
           <div><small>Militaire</small><b id="military">0</b></div><div><small>Villes</small><b id="cities">0</b></div>
+        </div>
+        <div class="editor-grid two civ-extra">
+          <label>Couleur<input id="civColor" type="color"></label>
+          <label>Style<select id="civStyle"><option value="balanced">Équilibré</option><option value="nature">Nature</option><option value="military">Militaire</option><option value="science">Scientifique</option><option value="wealth">Commercial</option></select></label>
         </div>
         <div class="slider-stack">
           <label>🧠 Intelligence <b id="intelV"></b><input id="intel" type="range" min="0" max="100"></label>
@@ -90,6 +194,29 @@
       </section>
 
       <section id="worldTab" class="itab">
+        <div class="sandbox-card scenario-card">
+          <div class="card-title">🎮 Créateur de scénario</div>
+          <label class="field"><span>Préréglage</span>
+            <select id="scenarioPreset">
+              <option value="custom">Personnalisé</option>
+              <option value="duel">Duel 2 civilisations</option>
+              <option value="tribes">8 tribus primitives</option>
+              <option value="islands">Archipel</option>
+              <option value="warworld">Monde en guerre</option>
+              <option value="peaceful">Monde paisible</option>
+              <option value="techrace">Course technologique</option>
+            </select>
+          </label>
+          <div class="editor-grid two">
+            <label>Nb civilisations<input id="scenarioCivs" type="number" min="2" max="8" value="2"></label>
+            <label>Population / civ<input id="scenarioPop" type="number" min="1" max="1000" value="80"></label>
+          </div>
+          <div class="scenario-buttons">
+            <button id="applyScenarioPreset">Charger preset</button>
+            <button id="startScenario" class="primary-action">▶ Lancer scénario</button>
+          </div>
+        </div>
+
         <h3>Génération</h3>
         <p class="panel-note">La V8 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
@@ -99,6 +226,11 @@
           <label>Température <b id="temperatureV">55%</b><input id="temperature" type="range" min="0" max="100" value="55"></label>
           <label>Rivières <b id="riversV">6</b><input id="rivers" type="range" min="0" max="16" value="6"></label>
           <label>Ressources <b id="resourceDensityV">100%</b><input id="resourceDensity" type="range" min="20" max="200" value="100"></label>
+          <label>Taille monde <select id="worldScale">
+            <option value="0.75">Grande</option>
+            <option value="1" selected>Très grande</option>
+            <option value="1.25">Immense</option>
+          </select></label>
         </div>
         <button id="regen" class="full primary">🗺 Générer le monde</button>
         <h3>Règles</h3>
@@ -109,6 +241,57 @@
           <label><span>🦠 Maladies</span><input id="disease" type="checkbox" checked></label>
           <label><span>💱 Commerce</span><input id="trade" type="checkbox" checked></label>
           <label><span>🏗 Construction auto</span><input id="autoBuild" type="checkbox" checked></label>
+        </div>
+        <h3>Histoire automatique</h3>
+        <div class="sandbox-card history-settings">
+          <div class="toggle-stack">
+            <label><span>🌪 Événements automatiques</span><input id="autoEvents" type="checkbox" checked></label>
+            <label><span>🎥 Ralenti des moments majeurs</span><input id="autoCinematic" type="checkbox" checked></label>
+            <label><span>💬 Discours & rassemblements</span><input id="autoSpeeches" type="checkbox" checked></label>
+            <label><span>⏺ Enregistrer le replay</span><input id="recordReplay" type="checkbox" checked></label>
+          </div>
+          <div class="editor-grid two">
+            <label>Fréquence événements<select id="eventFrequency">
+              <option value="220">Rare</option>
+              <option value="110" selected>Normale</option>
+              <option value="55">Fréquente</option>
+              <option value="28">Chaotique</option>
+            </select></label>
+            <label>Journal mondial<select id="journalImportance">
+              <option value="55">Important</option>
+              <option value="70" selected>Essentiel</option>
+              <option value="85">Historique uniquement</option>
+            </select></label>
+            <label>Seuil ralenti<select id="cinematicImportance">
+              <option value="65">Important</option>
+              <option value="78" selected>Majeur</option>
+              <option value="90">Historique</option>
+            </select></label>
+            <label>Durée cinématique<select id="cinematicDuration">
+              <option value="4500">4,5 s</option>
+              <option value="7000" selected>7 s</option>
+              <option value="10000">10 s</option>
+            </select></label>
+          </div>
+        </div>
+
+        <h3>Sauvegarde & replay</h3>
+        <div class="sandbox-card replay-settings">
+          <div class="replay-buttons">
+            <button id="saveSimulation">💾 Sauvegarder</button>
+            <button id="loadSimulation">📂 Charger</button>
+            <button id="openReplay">🎬 Replay</button>
+            <button id="exportReplay">📤 Exporter replay</button>
+            <label class="file-button">📥 Importer replay<input id="importReplay" type="file" accept=".aiworld,.json"></label>
+          </div>
+          <small id="replayInfo">Replay actif · aucun point enregistré</small>
+        </div>
+
+        <h3>Affichage</h3>
+        <div class="slider-stack">
+          <label>Taille PNJ <b id="npcVisualScaleV">120%</b><input id="npcVisualScale" type="range" min="80" max="180" value="120"></label>
+          <label>Taille bâtiments <b id="buildingVisualScaleV">125%</b><input id="buildingVisualScale" type="range" min="80" max="180" value="125"></label>
+          <label>Détails textures <b id="textureDetailV">80%</b><input id="textureDetail" type="range" min="20" max="100" value="80"></label>
         </div>
         <div class="slider-stack">
           <label>Météo <b id="weatherRateV">35%</b><input id="weatherRate" type="range" min="0" max="100" value="35"></label>
@@ -127,6 +310,7 @@
       <button class="cat" data-cat="civTools">🏛<span>Civilisations</span></button>
       <button class="cat" data-cat="warTools">⚔<span>Guerre</span></button>
       <button class="cat" data-cat="disasterTools">☄<span>Catastrophes</span></button>
+      <button class="cat" data-cat="powerTools">✨<span>Pouvoirs</span></button>
       <button class="cat" data-cat="infoTools">📜<span>Infos</span></button>
     </div>
 
@@ -176,6 +360,16 @@
       <button class="tool disaster" data-disaster="nuke">☢<span>Nucléaire</span></button>
     </div>
 
+    <div class="tool-row" id="powerTools">
+      <button id="healAll" class="tool">❤️<span>Soigner tous</span></button>
+      <button id="feedAll" class="tool">🍲<span>Nourrir</span></button>
+      <button id="agePlus" class="tool">⏩<span>+10 ans</span></button>
+      <button id="ageMinus" class="tool">⏪<span>−10 ans</span></button>
+      <button id="boostScience" class="tool">🧪<span>Science +</span></button>
+      <button id="boostTech" class="tool">⚙<span>Tech +</span></button>
+      <button id="clearDisease" class="tool">💊<span>Guérir monde</span></button>
+    </div>
+
     <div class="tool-row" id="infoTools">
       <button id="showLog" class="tool">📜<span>Journal</span></button>
       <button id="showWorld" class="tool">🌍<span>Monde</span></button>
@@ -185,8 +379,32 @@
   </div>
 
   <div id="logPanel" class="log-panel">
-    <div class="log-head"><b>Journal du monde</b><button id="closeLog">✕</button></div>
-    <div id="log"></div>
+    <div class="log-head"><div><b>Journal du monde</b><small id="worldJournalCount">0 événements majeurs</small></div><button id="closeLog">✕</button></div>
+    <div id="log" class="important-log"></div>
+  </div>
+
+  <div id="cinematicBanner" class="cinematic-banner">
+    <small>ÉVÉNEMENT MAJEUR</small>
+    <b id="cinematicTitle">Moment historique</b>
+    <span id="cinematicText"></span>
+  </div>
+
+  <div id="replayPanel" class="replay-panel">
+    <div class="replay-head">
+      <div><b>🎬 Replay historique</b><small id="replayPanelInfo">Aucun replay</small></div>
+      <button id="closeReplay">✕</button>
+    </div>
+    <div class="replay-body">
+      <input id="replayTimeline" type="range" min="0" max="0" value="0">
+      <div class="replay-controls">
+        <button id="replayPrev">⏮</button>
+        <button id="replayPlay">▶ Rejouer</button>
+        <button id="replayNext">⏭</button>
+        <button id="replayExit">↩ Retour simulation</button>
+      </div>
+      <div id="replayEventCard" class="replay-event-card">Les événements historiques apparaîtront ici.</div>
+      <div id="replayMarkers" class="replay-markers"></div>
+    </div>
   </div>
 </div>
 <script src="game.js"></script>

@@ -33,7 +33,7 @@ const lastNames=["Val","Roc","Bel","Sol","Ren","Mar","Dor","Kai","Lun","Ser","Ve
 let S;
 
 function showToast(t){let e=$("eventToast");e.textContent=t;e.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove("show"),1700)}
-function civ(i){return {id:i,name:i===0?"Savants":i===1?"Barbares":"Peuple "+(i+1),color:COLORS[i],intel:i?25:88,agg:i?88:20,disc:i?38:78,curiosity:i?30:90,coop:i?35:75,fertility:55,courage:i?90:55,science:0,tech:0,military:0,wealth:50,cities:1,kills:0,discoveries:[]}}
+function civ(i){return {id:i,name:i===0?"Savants":i===1?"Barbares":"Peuple "+(i+1),color:COLORS[i],style:"balanced",targetPopulation:100,populationCap:500,birthRate:1,ageProfile:"balanced",intel:i?25:88,agg:i?88:20,disc:i?38:78,curiosity:i?30:90,coop:i?35:75,fertility:55,courage:i?90:55,science:0,tech:0,military:0,wealth:50,cities:1,kills:0,discoveries:[]}}
 function eraIndex(v){let n=0;for(let i=0;i<eras.length;i++)if(v.tech>=eras[i].min)n=i;return n}
 function roleFor(v){
  let e=eraIndex(v),r=Math.random();
@@ -51,14 +51,142 @@ function makePerson(ci,x0=null,y0=null,age=null,parents=[]){
  let aggression=clamp(Math.round(v.agg+rnd(-25,25)),1,100),curiosity=clamp(Math.round(v.curiosity+rnd(-25,25)),1,100);
  let fertility=clamp(Math.round(v.fertility+rnd(-25,25)),1,100),health=clamp(Math.round(75+rnd(-15,25)),30,100);
  return {id:idSeq++,ci,x:x0??rnd(ci*band+80,(ci+1)*band-80),y:y0??rnd(120,H-100),vx:rnd(-1,1),vy:rnd(-1,1),
-  hp:health,hunger:rnd(65,100),age:age??Math.floor(rnd(8,70)),sex,role:roleFor(v),sick:false,cool:0,
+  hp:health,hunger:rnd(65,100),age:age??ageForProfile(v.ageProfile||"balanced"),sex,role:roleFor(v),sick:false,cool:0,
   first:pick(sex==="M"?firstNamesM:firstNamesF),last:pick(lastNames),intelligence,strength,charisma,aggression,curiosity,fertility,
   loyalty:clamp(Math.round(60+rnd(-25,30)),1,100),courage:clamp(Math.round(v.courage+rnd(-25,25)),1,100),
   partner:null,home:null,children:[],parents:[...parents],pregnant:0,pregnancyPartner:null,relationship:0,mood:clamp(Math.round(rnd(45,90)),1,100),
-  generation:parents.length?1:0};
+  generation:parents.length?1:0,
+  journal:[],memories:[],fame:0,influence:clamp(Math.round(charisma*.55+intelligence*.25+rnd(0,20)),1,100),
+  ambition:clamp(Math.round(rnd(15,100)),1,100),rallyLeader:null,rallyUntil:0,
+  scale:1,
+  skin:pick(["#d9aa83","#c8946e","#a96f4f","#7b4b36","#e4b995"]),
+  hair:pick(["#241912","#3a291f","#6b4d32","#b57b44","#d6b88b","#191919"]),
+  clothes:v.color,
+  hairStyle:pick(["short","short","long","curly","bald"])
+ };
 }
 function pname(p){return `${p.first} ${p.last}`}
-function log(t){let d=document.createElement("div");d.textContent=`A${S.year} J${S.day} — ${t}`;$("log").prepend(d);while($("log").children.length>160)$("log").lastChild.remove()}
+function ageForProfile(profile){
+ if(profile==="young")return Math.floor(rnd(0,35));
+ if(profile==="adult")return Math.floor(rnd(18,50));
+ if(profile==="mixed")return Math.floor(rnd(0,82));
+ return Math.floor(rnd(8,70));
+}
+function civStyleBonus(v,kind){
+ if(v.style==="science"&&kind==="science")return 1.22;
+ if(v.style==="military"&&kind==="military")return 1.22;
+ if(v.style==="wealth"&&kind==="wealth")return 1.20;
+ if(v.style==="nature"&&kind==="fertility")return 1.15;
+ return 1;
+}
+let story={cinematic:null,bubbles:[],lastAutoDay:0,nextAutoDay:0,worldEvents:[],replayMode:false,replayTimer:null};
+let R={recording:true,snapshots:[],events:[],lastCaptureYear:0,liveState:null,playing:false};
+
+function simStamp(){return `A${S.year} J${S.day}`}
+function simDayIndex(){return (S.year-1)*360+S.season*90+S.day}
+function importanceLabel(score){return score>=90?"HISTORIQUE":score>=78?"MAJEUR":"IMPORTANT"}
+function eventIcon(type){
+ return ({war:"⚔",peace:"🕊",era:"🏛",tech:"💡",disaster:"🌪",disease:"🦠",coup:"👑",death:"☠",birth:"👶",
+ speech:"📣",migration:"🧳",economy:"📉",city:"🏙",family:"💞",world:"🌍"})[type]||"◆";
+}
+function heuristicScore(t){
+ if(/guerre|paix|ère |Catastrophe|coup|révolution|épid|météor|nuclé/i.test(t))return 86;
+ if(/découvre|dirigeant|président|roi|chef/i.test(t))return 66;
+ if(/Naissance/i.test(t))return 25;
+ if(/couple|construit/i.test(t))return 16;
+ return 40;
+}
+function personImportance(p){
+ if(!p)return 0;let role=/Président|Chef|Maire/.test(p.role)?40:/Scientifique|Pilote|Chevalier/.test(p.role)?18:0;
+ return clamp(role+p.charisma*.22+p.influence*.18+(p.fame||0)*.5,0,100);
+}
+function addPersonEvent(p,title,text,importance=50,tags=[]){
+ if(!p)return;
+ if(!p.journal)p.journal=[]; if(!p.memories)p.memories=[];
+ let ev={stamp:simStamp(),year:S.year,day:S.day,title,text,importance,tags};
+ p.journal.unshift(ev);if(p.journal.length>80)p.journal.length=80;
+ if(importance>=60){p.memories.unshift({stamp:ev.stamp,text:title,importance});if(p.memories.length>24)p.memories.length=24}
+ if(selected?.type==="person"&&selected.obj===p)renderPersonLife(p);
+}
+function renderWorldJournal(){
+ let el=$("log"); if(!el)return; el.innerHTML="";
+ let threshold=+$("journalImportance")?.value||70;
+ let events=(story.worldEvents||[]).filter(e=>e.score>=threshold).slice(-180).reverse();
+ for(const ev of events){
+  let d=document.createElement("div");d.className="world-event "+(ev.score>=90?"historic":ev.score>=78?"major":"");
+  d.innerHTML=`<div class="event-meta"><span>${eventIcon(ev.type)} ${importanceLabel(ev.score)}</span><span>${ev.stamp}</span></div><strong>${ev.title}</strong><div>${ev.text}</div>`;
+  el.appendChild(d)
+ }
+ $("worldJournalCount").textContent=`${events.length} événements majeurs`;
+}
+function worldEvent(ev){
+ ev={type:"world",title:"Événement",text:"",score:50,ci:null,x:null,y:null,personId:null,speech:null,...ev,stamp:simStamp(),year:S.year,day:S.day,simDay:simDayIndex()};
+ story.worldEvents.push(ev);if(story.worldEvents.length>500)story.worldEvents.shift();
+ if(ev.personId){let p=findPerson(ev.personId);if(p){p.fame=(p.fame||0)+Math.max(1,(ev.score-55)/15);addPersonEvent(p,ev.title,ev.text,ev.score,[ev.type])}}
+ renderWorldJournal();
+ if(R.recording&&ev.score>=55){R.events.push({...ev});captureReplaySnapshot(ev)}
+ if(ev.score>=(+$("cinematicImportance")?.value||78))majorMoment(ev);
+ return ev;
+}
+function log(t){return worldEvent({title:t,text:t,type:"world",score:heuristicScore(t)})}
+
+function leaderForCiv(ci){
+ let ps=S.people.filter(p=>p.ci===ci);if(!ps.length)return null;
+ let leaders=ps.filter(p=>/Président|Chef|Maire/.test(p.role));
+ return (leaders.length?leaders:ps).sort((a,b)=>personImportance(b)-personImportance(a))[0];
+}
+function speechFor(ev,p){
+ let civn=S.civs[p.ci]?.name||"notre peuple";
+ if(ev.type==="coup")return `Citoyens de ${civn}, un nouvel ordre commence aujourd’hui. Nous devons rester unis.`;
+ if(ev.type==="war")return `Notre peuple est menacé. Restez unis : nous défendrons ${civn}.`;
+ if(ev.type==="peace")return `Après les épreuves, la paix revient. Il est temps de reconstruire ensemble.`;
+ if(ev.type==="disease")return `Une maladie se propage. Protégez vos proches et aidez les plus fragiles.`;
+ if(ev.type==="disaster")return `Nous avons subi une catastrophe. Personne ne sera abandonné.`;
+ if(ev.type==="era"||ev.type==="tech")return `Aujourd’hui marque une étape nouvelle. Le savoir de ${civn} nous ouvre un nouvel avenir.`;
+ return `Ce moment changera notre histoire. Restons unis et avançons ensemble.`;
+}
+function startRally(ev){
+ if(!$("autoSpeeches")?.checked)return;
+ let ci=ev.ci;if(ci==null&&ev.personId)ci=findPerson(ev.personId)?.ci;
+ if(ci==null)return;let leader=ev.personId?findPerson(ev.personId):leaderForCiv(ci);if(!leader)return;
+ let until=S.tick+900;
+ for(const p of S.people)if(p.ci===ci&&p.id!==leader.id&&(p.x-leader.x)**2+(p.y-leader.y)**2<1000*1000){p.rallyLeader=leader.id;p.rallyUntil=until}
+ let text=ev.speech||speechFor(ev,leader);
+ story.bubbles.push({personId:leader.id,text,name:pname(leader),until:Date.now()+(+$("cinematicDuration")?.value||7000)});
+ addPersonEvent(leader,"Discours public",text,72,["speech"]);
+}
+function majorMoment(ev){
+ if(!$("autoCinematic")?.checked)return;
+ let focus=null;if(ev.personId)focus=findPerson(ev.personId);if(!focus&&ev.x!=null)focus={x:ev.x,y:ev.y};if(!focus&&ev.ci!=null)focus=leaderForCiv(ev.ci);
+ story.cinematic={ev,end:Date.now()+(+$("cinematicDuration")?.value||7000),focus,oldCamera:{...camera}};
+ $("cinematicTitle").textContent=ev.title;$("cinematicText").textContent=ev.text;$("cinematicBanner").classList.add("show");document.body.classList.add("story-cinematic");
+ startRally(ev);
+}
+function updateStoryFrame(){
+ if(story.cinematic){
+  let q=story.cinematic;
+  if(Date.now()>q.end){story.cinematic=null;$("cinematicBanner").classList.remove("show");document.body.classList.remove("story-cinematic")}
+  else if(q.focus){
+   let fx=q.focus.x,fy=q.focus.y,targetZoom=Math.max(camera.zoom,Math.min(1.05,camera.maxZoom));
+   camera.zoom=lerp(camera.zoom,targetZoom,.035);camera.x=lerp(camera.x,fx-c.width/(2*camera.zoom),.055);camera.y=lerp(camera.y,fy-c.height/(2*camera.zoom),.055);clampCamera()
+  }
+ }
+ story.bubbles=story.bubbles.filter(b=>b.until>Date.now()&&findPerson(b.personId));
+}
+function drawSpeechBubbles(){
+ document.querySelectorAll(".speech-bubble").forEach(e=>e.remove());
+ let rect=c.getBoundingClientRect();
+ for(const b of story.bubbles){
+  let p=findPerson(b.personId);if(!p)continue;
+  let sx=(p.x-camera.x)*camera.zoom/c.width*rect.width+rect.left;
+  let sy=(p.y-camera.y)*camera.zoom/c.height*rect.height+rect.top;
+  let d=document.createElement("div");d.className="speech-bubble";
+  d.innerHTML=`<span class="speech-name">${b.name}</span>${b.text}`;
+  d.style.left=`${clamp(sx-20,8,window.innerWidth-270)}px`;d.style.top=`${clamp(sy-90,55,window.innerHeight-150)}px`;
+  document.body.appendChild(d)
+ }
+}
+
 
 /* -------- Better coherent noise -------- */
 function hash(ix,iy,s=0){
@@ -163,7 +291,7 @@ function seedResources(){
    S.res.push({type,x:px,y:py});
  }
 }
-function addBuilding(ci,type,x,y,name=null){let def=buildings.find(b=>b.type===type)||buildings[0],b={id:idSeq++,ci,type,x,y,name:name||def.name,beds:def.beds,residents:[]};S.buildings.push(b);return b}
+function addBuilding(ci,type,x,y,name=null){let def=buildings.find(b=>b.type===type)||buildings[0],b={id:idSeq++,ci,type,x,y,name:name||def.name,beds:def.beds,residents:[],scale:1,roof:null};S.buildings.push(b);return b}
 function assignHomes(ci){let homes=S.buildings.filter(b=>b.ci===ci&&b.beds>0),people=S.people.filter(p=>p.ci===ci&&!p.home);for(const p of people){let h=homes.find(h=>h.residents.length<h.beds);if(h){p.home=h.id;h.residents.push(p.id)}}}
 
 function fitWorld(){
@@ -189,8 +317,11 @@ function reset(){
    assignHomes(ci);
  }
  for(let y=0;y<H;y+=38)S.walls.push({x:W/2,y});
- active=0;selected=null;$("log").innerHTML="";log("Grand monde généré : continents, relief et rivières cohérentes.");tabs();editor();update();fitWorld();draw();
- $("detailCard").innerHTML='<div class="empty">Clique sur un élément du monde.</div>';
+ active=0;selected=null;story.worldEvents=[];story.bubbles=[];story.cinematic=null;story.lastAutoDay=simDayIndex();story.nextAutoDay=story.lastAutoDay+(+$("eventFrequency")?.value||110);R={recording:$("recordReplay")?.checked!==false,snapshots:[],events:[],lastCaptureYear:0,liveState:null,playing:false};$("log").innerHTML="";
+ for(const p of S.people){addPersonEvent(p,"Début de chronique",`${pname(p)} vit dans la civilisation ${S.civs[p.ci].name}.`,22,["origin"])}
+ worldEvent({type:"world",title:"Naissance d’un nouveau monde",text:"Les premières communautés s’installent sur les continents.",score:88,x:W/2,y:H/2});
+ captureReplaySnapshot(story.worldEvents.at(-1));tabs();editor();update();fitWorld();draw();
+ $("detailCard").innerHTML='<div class="empty">Clique sur un élément du monde.</div>';$("personEditor").classList.add("hidden");$("personLifePanel").classList.add("hidden");$("buildingEditor").classList.add("hidden");
 }
 function findPerson(id){return S.people.find(p=>p.id===id)}
 function findBuilding(id){return S.buildings.find(b=>b.id===id)}
@@ -202,26 +333,30 @@ function tryCouple(p){
  if(!$("couples").checked||p.partner||p.age<18||p.age>58)return;
  let candidates=S.people.filter(q=>q!==p&&q.ci===p.ci&&!q.partner&&q.age>=18&&q.age<=60&&q.sex!==p.sex&&(q.x-p.x)**2+(q.y-p.y)**2<220*220);
  let best=null,score=65;for(const q of candidates){let s=compatibility(p,q);if(s>score){score=s;best=q}}
- if(best&&Math.random()<.005){p.partner=best.id;best.partner=p.id;p.relationship=Math.round(score);best.relationship=p.relationship;let home=findBuilding(p.home)||findBuilding(best.home);if(home){p.home=home.id;best.home=home.id;if(!home.residents.includes(p.id))home.residents.push(p.id);if(!home.residents.includes(best.id))home.residents.push(best.id)}log(`${pname(p)} et ${pname(best)} forment un couple.`)}
+ if(best&&Math.random()<.005){p.partner=best.id;best.partner=p.id;p.relationship=Math.round(score);best.relationship=p.relationship;let home=findBuilding(p.home)||findBuilding(best.home);if(home){p.home=home.id;best.home=home.id;if(!home.residents.includes(p.id))home.residents.push(p.id);if(!home.residents.includes(best.id))home.residents.push(best.id)}addPersonEvent(p,"Nouveau couple",`${pname(p)} forme un couple avec ${pname(best)}.`,52,["family"]);addPersonEvent(best,"Nouveau couple",`${pname(best)} forme un couple avec ${pname(p)}.`,52,["family"])}
 }
 function tryPregnancy(p){
  if(!$("births").checked||!$("familyLife").checked||p.sex!=="F"||!p.partner||p.pregnant>0||p.age<18||p.age>44)return;
  let partner=findPerson(p.partner);if(!partner)return;let home=findBuilding(p.home);if(!home||home.residents.length>=home.beds)return;
- let chance=((p.fertility+partner.fertility)/200)*.0018;if(Math.random()<chance){p.pregnant=270;p.pregnancyPartner=partner.id}
+ let v=S.civs[p.ci],pop=S.people.filter(q=>q.ci===p.ci).length;if(pop>=(v.populationCap||500))return;let chance=((p.fertility+partner.fertility)/200)*.0018*(v.birthRate||1);if(Math.random()<chance){p.pregnant=270;p.pregnancyPartner=partner.id}
 }
 function birth(mother){
  let father=findPerson(mother.pregnancyPartner),home=findBuilding(mother.home);if(!father||!home)return;
  let child=makePerson(mother.ci,mother.x+rnd(-10,10),mother.y+rnd(-10,10),0,[mother.id,father.id]);child.last=father.last;child.home=home.id;
  child.intelligence=clamp(Math.round((mother.intelligence+father.intelligence)/2+rnd(-10,10)),1,100);child.strength=clamp(Math.round((mother.strength+father.strength)/2+rnd(-10,10)),1,100);child.charisma=clamp(Math.round((mother.charisma+father.charisma)/2+rnd(-10,10)),1,100);
  home.residents.push(child.id);S.people.push(child);mother.children.push(child.id);father.children.push(child.id);mother.pregnant=0;mother.pregnancyPartner=null;
- log(`Naissance de ${pname(child)}, enfant de ${pname(mother)} et ${pname(father)}.`);showToast(`👶 Naissance : ${pname(child)}`);
+ addPersonEvent(child,"Naissance",`${pname(child)} naît, enfant de ${pname(mother)} et ${pname(father)}.`,75,["birth"]);
+ addPersonEvent(mother,"Naissance d’un enfant",`${pname(child)} vient de naître.`,67,["family"]);addPersonEvent(father,"Naissance d’un enfant",`${pname(child)} vient de naître.`,67,["family"]);
+ if(Math.max(personImportance(mother),personImportance(father))>72)worldEvent({type:"birth",title:"Naissance dans une famille influente",text:`${pname(child)} naît dans la famille de ${pname(mother)} et ${pname(father)}.`,score:58,ci:mother.ci,personId:child.id,x:child.x,y:child.y});
+ showToast(`👶 Naissance : ${pname(child)}`);
 }
 function stepP(p){
  let v=S.civs[p.ci],e=eraIndex(v);p.hunger-=.014;p.cool=Math.max(0,p.cool-1);let g=null;
- if(p.age<6&&p.home){let h=findBuilding(p.home);if(h)g=h}
- else if(p.hunger<55||/Fermier|Cueilleur/.test(p.role))g=nearestRes(p,"food");
- else if(/Mineur|Ouvrier/.test(p.role))g=nearestRes(p,"ore");
- else if(p.partner&&$("familyLife").checked&&Math.random()<.02){let q=findPerson(p.partner);if(q)g=q}
+ if(p.rallyLeader&&p.rallyUntil>S.tick){let lead=findPerson(p.rallyLeader);if(lead)g=lead;else p.rallyLeader=null}
+ if(!g&&p.age<6&&p.home){let h=findBuilding(p.home);if(h)g=h}
+ else if(!g&&(p.hunger<55||/Fermier|Cueilleur/.test(p.role)))g=nearestRes(p,"food");
+ else if(!g&&/Mineur|Ouvrier/.test(p.role))g=nearestRes(p,"ore");
+ else if(!g&&p.partner&&$("familyLife").checked&&Math.random()<.02){let q=findPerson(p.partner);if(q)g=q}
  if(S.war&&(/Guerrier|Soldat|Chevalier|Pilote/.test(p.role)||Math.random()<p.aggression/400))g=enemy(p,350+p.courage*2)||g;
  if(g){let dx=g.x-p.x,dy=g.y-p.y,m=Math.hypot(dx,dy)||1;p.vx+=dx/m*.08;p.vy+=dy/m*.08}
  p.vx+=rnd(-.07,.07);p.vy+=rnd(-.07,.07);let terr=terrainAt(p.x,p.y).type,slow=terr==="forest"?.8:terr==="mountain"?.55:terr==="water"?.32:1;if(S.weather==="Tempête")slow*=.7;
@@ -236,28 +371,99 @@ function stepP(p){
 function maybeBuild(ci){
  let v=S.civs[ci],e=eraIndex(v);if(!$("autoBuild").checked)return;let ps=S.people.filter(p=>p.ci===ci);if(ps.length<12||v.wealth<15)return;
  let homeless=ps.filter(p=>!p.home).length,needHome=homeless>3||ps.length>S.buildings.filter(b=>b.ci===ci).reduce((a,b)=>a+b.beds,0)*.9;
- if(Math.random()<.05*(.4+v.coop/100)){let avail=buildings.filter(b=>b.era<=e&&(needHome?b.beds>0:true)),def=pick(avail),[px,py]=landPoint(ci);addBuilding(ci,def.type,px,py);v.wealth-=10+def.era*5;if(def.type==="hall")v.cities++;assignHomes(ci);log(`${v.name} construit : ${def.name}.`)}
+ if(Math.random()<.05*(.4+v.coop/100)){let avail=buildings.filter(b=>b.era<=e&&(needHome?b.beds>0:true)),def=pick(avail),[px,py]=landPoint(ci);addBuilding(ci,def.type,px,py);v.wealth-=10+def.era*5;if(def.type==="hall")v.cities++;assignHomes(ci)}
 }
 function develop(){
  for(let i=0;i<S.civs.length;i++){let v=S.civs[i],ps=S.people.filter(p=>p.ci===i),sch=ps.filter(p=>/Scientifique|Scribe/.test(p.role)).length,sold=ps.filter(p=>/Guerrier|Soldat|Chevalier|Pilote/.test(p.role)).length;
   let prev=eraIndex(v),avgInt=ps.length?ps.reduce((a,p)=>a+p.intelligence,0)/ps.length:v.intel;
-  v.science+=(avgInt/100)*(v.curiosity/100)*(.38+sch*.025);v.tech+=v.science/8500*(.45+avgInt/100);v.military+=(v.agg/100)*(.018+sold*.003)+v.tech/50000;
-  for(const [name,cost] of techs)if(v.science>=cost&&!v.discoveries.includes(name)){v.discoveries.push(name);log(`${v.name} découvre ${name}.`)}
-  let ne=eraIndex(v);if(ne>prev){log(`${v.name} entre dans l’ère ${eras[ne].name}.`);showToast(`${eras[ne].icon} ${v.name} : ère ${eras[ne].name}`);for(const p of ps)p.role=roleFor(v)}
+  v.science+=(avgInt/100)*(v.curiosity/100)*(.38+sch*.025)*civStyleBonus(v,"science");v.tech+=v.science/8500*(.45+avgInt/100);v.military+=((v.agg/100)*(.018+sold*.003)+v.tech/50000)*civStyleBonus(v,"military");
+  for(const [name,cost] of techs)if(v.science>=cost&&!v.discoveries.includes(name)){v.discoveries.push(name);let lead=leaderForCiv(i);worldEvent({type:"tech",title:`Découverte : ${name}`,text:`${v.name} maîtrise désormais ${name}.`,score:name==="Énergie atomique"?92:62+Math.min(18,cost/250),ci:i,personId:lead?.id,x:lead?.x,y:lead?.y})}
+  let ne=eraIndex(v);if(ne>prev){let lead=leaderForCiv(i);worldEvent({type:"era",title:`${v.name} entre dans l’ère ${eras[ne].name}`,text:`La société de ${v.name} connaît une transformation historique.`,score:92,ci:i,personId:lead?.id,x:lead?.x,y:lead?.y});showToast(`${eras[ne].icon} ${v.name} : ère ${eras[ne].name}`);for(const p of ps)p.role=roleFor(v)}
   maybeBuild(i);
  }
 }
 function weather(){if(Math.random()*100>+$("weatherRate").value)return;S.weather=pick(S.season===3?["Clair","Neige","Neige","Tempête"]:["Clair","Clair","Pluie","Tempête"])}
+
+function populationOf(ci){return S.people.filter(p=>p.ci===ci)}
+function autoEpidemic(ci){
+ let ps=populationOf(ci);if(!ps.length)return;let frac=rnd(.08,.22),n=Math.max(2,Math.floor(ps.length*frac));
+ for(let i=0;i<n;i++){let p=pick(ps);if(!p.sick){p.sick=true;addPersonEvent(p,"Maladie",`${pname(p)} contracte une maladie lors d’une épidémie.`,62,["disease"])}}
+ let lead=leaderForCiv(ci),v=S.civs[ci];worldEvent({type:"disease",title:`Épidémie en ${v.name}`,text:`Une maladie touche environ ${n} habitants. Les communautés tentent de limiter sa propagation.`,score:clamp(68+n/3,68,91),ci,personId:lead?.id,x:lead?.x,y:lead?.y})
+}
+function autoFamine(ci){
+ let ps=populationOf(ci),v=S.civs[ci];if(!ps.length)return;let cx=ps.reduce((a,p)=>a+p.x,0)/ps.length,cy=ps.reduce((a,p)=>a+p.y,0)/ps.length;
+ let before=S.res.length;S.res=S.res.filter(r=>r.type!=="food"||((r.x-cx)**2+(r.y-cy)**2>950*950)||Math.random()>.72);
+ let lead=leaderForCiv(ci);worldEvent({type:"disaster",title:`Crise alimentaire en ${v.name}`,text:`Les réserves et récoltes chutent brutalement. La population risque la famine.`,score:78,ci,personId:lead?.id,x:cx,y:cy})
+}
+function autoEarthquake(ci){
+ let ps=populationOf(ci);if(!ps.length)return;let epic=pick(ps),rr=220+rnd(0,220),deaths=0,damaged=0;
+ for(const p of ps)if((p.x-epic.x)**2+(p.y-epic.y)**2<rr*rr){let dmg=rnd(8,52);p.hp-=dmg;if(p.hp<=0)deaths++;else damaged++}
+ let old=S.buildings.length;S.buildings=S.buildings.filter(b=>!((b.x-epic.x)**2+(b.y-epic.y)**2<rr*rr&&Math.random()<.32));let lost=old-S.buildings.length;
+ worldEvent({type:"disaster",title:"Fort séisme",text:`Un séisme frappe ${S.civs[ci].name} : ${damaged} blessés, ${deaths} morts immédiats et ${lost} bâtiments détruits.`,score:clamp(78+deaths*2+lost*2,78,98),ci,x:epic.x,y:epic.y,personId:leaderForCiv(ci)?.id})
+}
+function autoWildfire(ci){
+ let ps=populationOf(ci);if(!ps.length)return;let q=pick(ps),rr=260,deaths=0;
+ for(const p of ps)if((p.x-q.x)**2+(p.y-q.y)**2<rr*rr){p.hp-=rnd(0,28);if(p.hp<=0)deaths++}
+ let old=S.buildings.length;S.buildings=S.buildings.filter(b=>!((b.x-q.x)**2+(b.y-q.y)**2<rr*rr&&Math.random()<.2));
+ worldEvent({type:"disaster",title:"Grand incendie",text:`Un incendie se propage près d’une zone habitée de ${S.civs[ci].name}. ${old-S.buildings.length} bâtiments sont perdus.`,score:clamp(72+(old-S.buildings.length)*3+deaths*3,72,94),ci,x:q.x,y:q.y,personId:leaderForCiv(ci)?.id})
+}
+function autoCoup(ci){
+ let ps=populationOf(ci);if(ps.length<12)return false;let v=S.civs[ci],oldLead=leaderForCiv(ci);if(!oldLead)return false;
+ let avgMood=ps.reduce((a,p)=>a+p.mood,0)/ps.length;
+ let challengers=ps.filter(p=>p.id!==oldLead.id&&p.age>=20).sort((a,b)=>(b.ambition+b.charisma+b.influence)-(a.ambition+a.charisma+a.influence));
+ let ch=challengers[0];if(!ch)return false;
+ let tension=(100-avgMood)+v.agg*.25+ch.ambition*.3-oldLead.charisma*.15;
+ if(tension<55&&Math.random()<.7)return false;
+ let oldRole=oldLead.role;oldLead.role=eraIndex(v)<=1?"Ancien chef":"Opposant";ch.role=eraIndex(v)===0?"Chef de tribu":eraIndex(v)<=1?"Chef":eraIndex(v)<=3?"Maire":"Président";
+ ch.fame=(ch.fame||0)+25;ch.influence=clamp(ch.influence+20,1,100);oldLead.mood=Math.max(5,oldLead.mood-35);
+ addPersonEvent(oldLead,"Renversé",`${pname(oldLead)} perd le pouvoir lors d’un coup d’État.`,96,["coup"]);
+ addPersonEvent(ch,"Prise du pouvoir",`${pname(ch)} renverse ${pname(oldLead)} et devient ${ch.role}.`,98,["coup"]);
+ worldEvent({type:"coup",title:`Coup d’État en ${v.name}`,text:`${pname(ch)} renverse ${pname(oldLead)} et prend le pouvoir.`,score:98,ci,personId:ch.id,x:ch.x,y:ch.y});
+ return true;
+}
+function autoMigration(ci){
+ let ps=populationOf(ci);if(ps.length<20||S.civs.length<2)return;let other=(ci+1+Math.floor(Math.random()*(S.civs.length-1)))%S.civs.length,n=Math.min(Math.floor(ps.length*.06),18);if(n<2)return;
+ let movers=[...ps].sort((a,b)=>a.mood-b.mood).slice(0,n);for(const p of movers){p.ci=other;p.clothes=S.civs[other].color;p.home=null;addPersonEvent(p,"Migration",`${pname(p)} quitte ${S.civs[ci].name} pour ${S.civs[other].name}.`,64,["migration"])}
+ assignHomes(other);worldEvent({type:"migration",title:"Vague de migration",text:`${n} habitants quittent ${S.civs[ci].name} pour rejoindre ${S.civs[other].name}.`,score:64+n,ci:other,personId:leaderForCiv(other)?.id})
+}
+function runAutomaticEvent(){
+ if(!$("autoEvents")?.checked||story.replayMode)return;
+ let ci=Math.floor(Math.random()*S.civs.length),v=S.civs[ci],ps=populationOf(ci);if(!ps.length)return;
+ let avgMood=ps.reduce((a,p)=>a+p.mood,0)/ps.length;
+ let choices=[];
+ if($("disease").checked)choices.push("epidemic","epidemic");
+ choices.push("famine","earthquake","wildfire","storm","migration");
+ if(avgMood<58||v.agg>72)choices.push("coup","coup");
+ let kind=pick(choices);
+ if(kind==="epidemic")autoEpidemic(ci);
+ else if(kind==="famine")autoFamine(ci);
+ else if(kind==="earthquake")autoEarthquake(ci);
+ else if(kind==="wildfire")autoWildfire(ci);
+ else if(kind==="migration")autoMigration(ci);
+ else if(kind==="coup"){if(!autoCoup(ci))autoWildfire(ci)}
+ else {S.weather="Tempête";let lead=leaderForCiv(ci);worldEvent({type:"disaster",title:"Tempête exceptionnelle",text:`Une violente tempête frappe le territoire de ${v.name}.`,score:69,ci,personId:lead?.id,x:lead?.x,y:lead?.y})}
+}
+function processAutomaticEvents(){
+ let d=simDayIndex();if(!story.nextAutoDay)story.nextAutoDay=d+(+$("eventFrequency").value||110);
+ if(d>=story.nextAutoDay){runAutomaticEvent();story.lastAutoDay=d;story.nextAutoDay=d+(+$("eventFrequency").value||110)+Math.floor(rnd(-20,35))}
+}
+
 function tick(){
- S.tick++;S.minute+=+$("timeScale").value;
+ S.tick++;S.minute+=story.cinematic?.ev?0.10:+$("timeScale").value;
  if(S.minute>=1440){let d=Math.floor(S.minute/1440);S.minute%=1440;S.day+=d;while(S.day>90){S.day-=90;S.season++;if(S.season>3){S.season=0;S.year++}weather()}}
  for(const p of S.people)stepP(p);
- let dead=S.people.filter(p=>p.hp<=0||p.age>=98);for(const p of dead){if(p.partner){let q=findPerson(p.partner);if(q)q.partner=null}let h=findBuilding(p.home);if(h)h.residents=h.residents.filter(id=>id!==p.id)}
+ let dead=S.people.filter(p=>p.hp<=0||p.age>=98);for(const p of dead){
+  let imp=personImportance(p);addPersonEvent(p,"Mort",`${pname(p)} meurt à ${p.age} ans.`,85,["death"]);
+  if(p.partner){let q=findPerson(p.partner);if(q){q.partner=null;addPersonEvent(q,"Deuil",`${pname(p)}, son partenaire, vient de mourir.`,82,["death"])}}
+  for(const id of p.children||[]){let q=findPerson(id);if(q)addPersonEvent(q,"Mort d’un parent",`${pname(p)} vient de mourir.`,80,["death"])}
+  let h=findBuilding(p.home);if(h)h.residents=h.residents.filter(id=>id!==p.id);
+  if(imp>72)worldEvent({type:"death",title:`Mort de ${pname(p)}`,text:`${pname(p)}, ${p.role} de ${S.civs[p.ci]?.name||"son peuple"}, meurt à ${p.age} ans.`,score:clamp(74+imp*.2,74,96),ci:p.ci,x:p.x,y:p.y})
+ }
  S.people=S.people.filter(p=>p.hp>0&&p.age<98);
  if(S.tick%22===0)develop();if(S.tick%1100===0)for(const p of S.people)p.age++;
  if(Math.random()<.05&&S.res.length<2200){let [px,py]=landPoint(Math.floor(Math.random()*S.civs.length));S.res.push({type:pick(["food","wood","ore"]),x:px,y:py})}
  if($("disease").checked&&Math.random()<.0001&&S.people.length)pick(S.people).sick=true;
- if($("trade").checked&&!S.war&&S.tick%220===0)for(const v of S.civs)v.wealth+=v.coop/25;update();
+ if($("trade").checked&&!S.war&&S.tick%220===0)for(const v of S.civs)v.wealth+=v.coop/25;processAutomaticEvents();maybePeriodicReplayCapture();update();
 }
 
 /* -------- Camera / rendering -------- */
@@ -295,27 +501,93 @@ function drawTerrain(){
  }
 }
 function drawBuilding(b){
- let a=b.x,q=b.y,v=S.civs[b.ci],e=buildings.find(z=>z.type===b.type)?.era||0,roof=["#6e4d35","#8c6545","#6b5c4c","#765340","#68717a","#536578"][e]||"#6e4d35";
- ctx.save();ctx.translate(a,q);
- ctx.fillStyle="rgba(0,0,0,.20)";ctx.beginPath();ctx.ellipse(0,9,16,6,0,0,Math.PI*2);ctx.fill();
- ctx.fillStyle=v?.color||"#aaa";ctx.fillRect(-12,-4,24,16);
- ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(-15,-4);ctx.lineTo(0,-18);ctx.lineTo(15,-4);ctx.closePath();ctx.fill();
- ctx.fillStyle="#ede2c5";ctx.fillRect(-3,3,6,9);
- if(["factory","power"].includes(b.type)){ctx.fillStyle="#444d52";ctx.fillRect(8,-22,5,18);ctx.fillStyle="rgba(220,225,228,.35)";ctx.beginPath();ctx.arc(11,-27,6,0,Math.PI*2);ctx.fill()}
- if(b.type==="hospital"){ctx.fillStyle="#f0f3f4";ctx.fillRect(-2,-1,4,10);ctx.fillRect(-6,2,12,4)}
- if(b.type==="airport"){ctx.fillStyle="#bfc8cc";ctx.fillRect(-19,12,38,4)}
+ let a=b.x,q=b.y,v=S.civs[b.ci],e=buildings.find(z=>z.type===b.type)?.era||0;
+ let globalScale=(+$("buildingVisualScale").value||125)/100,sc=globalScale*(b.scale||1);
+ let roof=b.roof||["#6e4d35","#8c6545","#6b5c4c","#765340","#68717a","#536578"][e]||"#6e4d35";
+ let wall=v?.color||"#aaa",detail=(+$("textureDetail").value||80)/100;
+ ctx.save();ctx.translate(a,q);ctx.scale(sc,sc);
+
+ // soft ground shadow
+ ctx.fillStyle="rgba(0,0,0,.22)";ctx.beginPath();ctx.ellipse(0,12,19,7,0,0,Math.PI*2);ctx.fill();
+
+ // foundation
+ ctx.fillStyle="#5f5a51";ctx.fillRect(-15,8,30,4);
+
+ // walls with subtle gradient-like bands
+ ctx.fillStyle=wall;ctx.beginPath();ctx.roundRect(-14,-6,28,17,2);ctx.fill();
+ ctx.fillStyle="rgba(255,255,255,.08)";ctx.fillRect(-12,-4,24,3);
+ ctx.fillStyle="rgba(0,0,0,.08)";ctx.fillRect(-12,5,24,4);
+
+ // roof
+ ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(-18,-6);ctx.lineTo(0,-23);ctx.lineTo(18,-6);ctx.closePath();ctx.fill();
+ ctx.strokeStyle="rgba(30,25,20,.32)";ctx.lineWidth=1.2;ctx.stroke();
+
+ // door + windows
+ ctx.fillStyle="#5a4030";ctx.fillRect(-3,2,6,9);
+ ctx.fillStyle="#a9d5e3";ctx.fillRect(-10,-1,5,5);ctx.fillRect(5,-1,5,5);
+ ctx.fillStyle="rgba(255,255,255,.38)";ctx.fillRect(-9,0,1,3);ctx.fillRect(6,0,1,3);
+
+ if(detail>.45){
+   ctx.strokeStyle="rgba(70,55,40,.26)";ctx.lineWidth=.9;
+   for(let yy=-2;yy<8;yy+=4){ctx.beginPath();ctx.moveTo(-13,yy);ctx.lineTo(13,yy);ctx.stroke()}
+ }
+ if(["factory","power"].includes(b.type)){
+   ctx.fillStyle="#465159";ctx.fillRect(9,-28,6,22);
+   ctx.fillStyle="#2e383e";ctx.fillRect(8,-29,8,3);
+   ctx.fillStyle="rgba(210,220,225,.32)";ctx.beginPath();ctx.arc(13,-34,7,0,Math.PI*2);ctx.fill();
+ }
+ if(b.type==="hospital"){
+   ctx.fillStyle="#f1f4f5";ctx.fillRect(-2,-2,4,11);ctx.fillRect(-7,2,14,4);
+ }
+ if(b.type==="airport"){
+   ctx.fillStyle="#bcc8cd";ctx.fillRect(-23,13,46,5);
+   ctx.fillStyle="#48545a";ctx.fillRect(-2,13,4,5);
+ }
+ if(b.type==="lab"){
+   ctx.fillStyle="#b7d5e1";ctx.beginPath();ctx.arc(0,-13,7,Math.PI,0);ctx.fill();
+ }
+ if(b.type==="strategic"){
+   ctx.fillStyle="#38434a";ctx.fillRect(-8,-29,16,16);
+   ctx.strokeStyle="#bcc7cc";ctx.beginPath();ctx.arc(0,-22,5,0,Math.PI*2);ctx.stroke();
+ }
  ctx.restore();
 }
 function drawPerson(p){
- let a=p.x,b=p.y,v=S.civs[p.ci];ctx.save();ctx.translate(a,b);
- ctx.fillStyle="rgba(0,0,0,.18)";ctx.beginPath();ctx.ellipse(0,7,5,2.4,0,0,Math.PI*2);ctx.fill();
- ctx.fillStyle=p.sex==="F"?"#d9a780":"#c8946e";ctx.beginPath();ctx.arc(0,-6,4.1,0,Math.PI*2);ctx.fill();
- ctx.fillStyle=v.color;ctx.beginPath();ctx.roundRect(-4,-2,8,10,2);ctx.fill();
- ctx.strokeStyle="#283238";ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(-2,8);ctx.lineTo(-2,13);ctx.moveTo(2,8);ctx.lineTo(2,13);ctx.stroke();
- if(/Chef|Maire|Président/.test(p.role)){ctx.fillStyle="#f0c64b";ctx.beginPath();ctx.moveTo(-5,-10);ctx.lineTo(0,-14);ctx.lineTo(5,-10);ctx.closePath();ctx.fill()}
- if(/Médecin|Guérisseur/.test(p.role)){ctx.strokeStyle="#eef4f5";ctx.lineWidth=1.4;ctx.strokeRect(5,-1,3,6)}
- if(/Guerrier|Soldat|Chevalier/.test(p.role)){ctx.strokeStyle="#d5dcdf";ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(6,-4);ctx.lineTo(6,8);ctx.stroke()}
- if(p.partner){ctx.fillStyle="#e77fa3";ctx.beginPath();ctx.arc(0,-15,1.8,0,Math.PI*2);ctx.fill()}
+ let a=p.x,b=p.y,v=S.civs[p.ci],globalScale=(+$("npcVisualScale").value||120)/100,sc=globalScale*(p.scale||1);
+ ctx.save();ctx.translate(a,b);ctx.scale(sc,sc);
+
+ // shadow
+ ctx.fillStyle="rgba(0,0,0,.20)";ctx.beginPath();ctx.ellipse(0,10,6,2.7,0,0,Math.PI*2);ctx.fill();
+
+ // legs
+ ctx.strokeStyle="#273036";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-2,6);ctx.lineTo(-2,12);ctx.moveTo(2,6);ctx.lineTo(2,12);ctx.stroke();
+
+ // torso / clothes
+ ctx.fillStyle=p.clothes||v.color;ctx.beginPath();ctx.roundRect(-5,-3,10,11,2.5);ctx.fill();
+ ctx.fillStyle="rgba(255,255,255,.10)";ctx.fillRect(-4,-2,8,2);
+
+ // arms
+ ctx.strokeStyle=p.skin||"#c8946e";ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(-8,5);ctx.moveTo(5,0);ctx.lineTo(8,5);ctx.stroke();
+
+ // head
+ ctx.fillStyle=p.skin||"#c8946e";ctx.beginPath();ctx.arc(0,-9,5,0,Math.PI*2);ctx.fill();
+
+ // hair
+ ctx.fillStyle=p.hair||"#241912";
+ if(p.hairStyle==="bald"){}
+ else if(p.hairStyle==="long"){ctx.beginPath();ctx.arc(0,-10,5.3,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(-5,-10,2,8);ctx.fillRect(3,-10,2,8)}
+ else if(p.hairStyle==="curly"){for(let i=-1;i<=1;i++){ctx.beginPath();ctx.arc(i*3,-13+(Math.abs(i)),2.5,0,Math.PI*2);ctx.fill()}}
+ else if(p.hairStyle==="mohawk"){ctx.fillRect(-1,-17,2,7)}
+ else {ctx.beginPath();ctx.arc(0,-11,5,Math.PI,Math.PI*2);ctx.fill()}
+
+ // eyes
+ ctx.fillStyle="#1b2023";ctx.fillRect(-2.5,-9,1,1);ctx.fillRect(1.5,-9,1,1);
+
+ // role signs
+ if(/Chef|Maire|Président/.test(p.role)){ctx.fillStyle="#f1c84c";ctx.beginPath();ctx.moveTo(-6,-14);ctx.lineTo(-3,-18);ctx.lineTo(0,-15);ctx.lineTo(3,-18);ctx.lineTo(6,-14);ctx.closePath();ctx.fill()}
+ if(/Médecin|Guérisseur/.test(p.role)){ctx.strokeStyle="#f2f6f7";ctx.lineWidth=1.5;ctx.strokeRect(7,-2,4,7)}
+ if(/Guerrier|Soldat|Chevalier/.test(p.role)){ctx.strokeStyle="#d6dde0";ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(9,-5);ctx.lineTo(9,10);ctx.stroke()}
+ if(p.partner){ctx.fillStyle="#ea7fa5";ctx.beginPath();ctx.arc(0,-20,2,0,Math.PI*2);ctx.fill()}
  ctx.restore();
 }
 function drawWeather(){
@@ -331,7 +603,7 @@ function draw(){
  for(const b of S.buildings)if(visible(b))drawBuilding(b);
  for(const w of S.walls)if(visible(w)){ctx.fillStyle="#817a70";ctx.fillRect(w.x-4,w.y,8,22);ctx.fillStyle="#9a9387";ctx.fillRect(w.x-5,w.y,10,4)}
  for(const p of S.people)if(visible(p))drawPerson(p);
- drawWeather();
+ drawWeather();drawSpeechBubbles();
 }
 function screenToWorld(clientX,clientY){
  let r=c.getBoundingClientRect(),cx=(clientX-r.left)/r.width*c.width,cy=(clientY-r.top)/r.height*c.height;
@@ -341,7 +613,7 @@ function screenToWorld(clientX,clientY){
 /* -------- UI / details -------- */
 function tabs(){$("civTabs").innerHTML="";S.civs.forEach((v,i)=>{let b=document.createElement("button");b.className="tab"+(i===active?" active":"");b.textContent=v.name;b.style.borderColor=v.color;b.onclick=()=>{active=i;tabs();editor()};$("civTabs").appendChild(b)})}
 const fields=["intel","agg","disc","curiosity","coop","fertility","courage"];
-function editor(){let v=S.civs[active];if(!v)return;$("civName").value=v.name;for(const f of fields){$(f).value=v[f];$(f+"V").textContent=v[f]}update()}
+function editor(){let v=S.civs[active];if(!v)return;$("civName").value=v.name;$("civColor").value=v.color;$("civStyle").value=v.style||"balanced";$("targetPopulation").value=v.targetPopulation??100;$("populationCap").value=v.populationCap??500;$("birthRateMode").value=String(v.birthRate??1);$("ageProfile").value=v.ageProfile||"balanced";for(const f of fields){$(f).value=v[f];$(f+"V").textContent=v[f]}update()}
 function openInspector(tab="detailTab"){$("inspector").classList.add("open");document.querySelectorAll(".it").forEach(b=>b.classList.toggle("active",b.dataset.itab===tab));document.querySelectorAll(".itab").forEach(s=>s.classList.toggle("active",s.id===tab))}
 function detailPerson(p){
  let v=S.civs[p.ci],partner=findPerson(p.partner),home=findBuilding(p.home),parents=p.parents.map(findPerson).filter(Boolean),kids=p.children.map(findPerson).filter(Boolean),weapon=weapons.filter(w=>w.era<=eraIndex(v)).slice(-1)[0];
@@ -350,17 +622,139 @@ function detailPerson(p){
  <div><small>Intelligence</small><b>${p.intelligence}</b></div><div><small>Force</small><b>${p.strength}</b></div><div><small>Charisme</small><b>${p.charisma}</b></div><div><small>Agressivité</small><b>${p.aggression}</b></div>
  <div><small>Curiosité</small><b>${p.curiosity}</b></div><div><small>Courage</small><b>${p.courage}</b></div><div><small>Loyauté</small><b>${p.loyalty}</b></div><div><small>Humeur</small><b>${p.mood}</b></div>
  <div><small>Santé</small><b>${Math.ceil(p.hp)}%</b></div><div><small>Arme</small><b>${weapon.name}</b></div><div><small>Habitat</small><b>${home?home.name:"Aucun"}</b></div><div><small>État</small><b>${p.pregnant>0?"Grossesse":p.sick?"Malade":"Normal"}</b></div></div>
- <div class="family-box"><b>💞 Famille</b>Partenaire : ${partner?pname(partner):"Aucun"}<br>Parents : ${parents.length?parents.map(pname).join(", "):"—"}<br>Enfants : ${kids.length?kids.map(pname).join(", "):"Aucun"}</div>`;
+ <div class="family-box"><b>💞 Famille</b>Partenaire : ${partner?pname(partner):"Aucun"}<br>Parents : ${parents.length?parents.map(pname).join(", "):"—"}<br>Enfants : ${kids.length?kids.map(pname).join(", "):"Aucun"}<br><br><b>⭐ Importance historique</b> ${Math.round(personImportance(p))}/100</div>`;
+ selected={type:"person",obj:p};
+ $("buildingEditor").classList.add("hidden");$("personEditor").classList.remove("hidden");
+ populatePersonEditor(p);renderPersonLife(p);$("personLifePanel").classList.remove("hidden");
  openInspector("detailTab");$("selected").textContent=`${pname(p)} · ${p.role}`;
 }
-function detailBuilding(b){let v=S.civs[b.ci];$("inspectorTitle").textContent=b.name;$("inspectorSub").textContent=v.name;$("detailCard").innerHTML=`<div class="detail-head"><div class="portrait">🏠</div><div><h4>${b.name}</h4><p>${v.name}</p></div></div><div class="detail-grid"><div><small>Type</small><b>${b.type}</b></div><div><small>Lits</small><b>${b.beds}</b></div><div><small>Résidents</small><b>${b.residents.length}</b></div><div><small>Époque</small><b>${eras[eraIndex(v)].name}</b></div></div>`;openInspector("detailTab");$("selected").textContent=`${b.name} · ${v.name}`}
+function detailBuilding(b){
+ let v=S.civs[b.ci];selected={type:"building",obj:b};
+ $("inspectorTitle").textContent=b.name;$("inspectorSub").textContent=v.name;
+ $("detailCard").innerHTML=`<div class="detail-head"><div class="portrait">🏠</div><div><h4>${b.name}</h4><p>${v.name}</p></div></div><div class="detail-grid"><div><small>Type</small><b>${b.type}</b></div><div><small>Lits</small><b>${b.beds}</b></div><div><small>Résidents</small><b>${b.residents.length}</b></div><div><small>Époque</small><b>${eras[eraIndex(v)].name}</b></div></div>`;
+ $("personEditor").classList.add("hidden");$("personLifePanel").classList.add("hidden");$("buildingEditor").classList.remove("hidden");
+ $("editBuildingName").value=b.name;$("editBuildingScale").value=String(b.scale||1);$("editBuildingRoof").value=b.roof||"#6e4d35";
+ openInspector("detailTab");$("selected").textContent=`${b.name} · ${v.name}`;
+}
+
+const personEditRanges=["Intelligence","Strength","Charisma","Aggression","Curiosity","Fertility","Loyalty","Courage","Mood","Health"];
+function populatePersonEditor(p){
+ $("editFirst").value=p.first;$("editLast").value=p.last;$("editAge").value=p.age;$("editSex").value=p.sex;$("editRole").value=p.role;
+ $("editScale").value=String(p.scale||1);$("editSkin").value=p.skin||"#c8946e";$("editHair").value=p.hair||"#241912";$("editClothes").value=p.clothes||S.civs[p.ci].color;$("editHairStyle").value=p.hairStyle||"short";
+ $("editCiv").innerHTML=S.civs.map((v,i)=>`<option value="${i}">${v.name}</option>`).join("");$("editCiv").value=String(p.ci);
+ const map={Intelligence:"intelligence",Strength:"strength",Charisma:"charisma",Aggression:"aggression",Curiosity:"curiosity",Fertility:"fertility",Loyalty:"loyalty",Courage:"courage",Mood:"mood",Health:"hp"};
+ for(const label of personEditRanges){let key=map[label],val=Math.round(p[key]);$("edit"+label).value=val;$("edit"+label+"V").textContent=val}
+}
+function refreshSelectedPerson(){
+ if(selected?.type!=="person")return;
+ let p=selected.obj;if(!S.people.includes(p))return;
+ detailPerson(p);
+}
+
+
+function renderPersonLife(p){
+ if(!p)return;
+ let j=(p.journal||[]).slice(0,60),m=(p.memories||[]).slice(0,24);
+ $("personJournal").innerHTML=j.length?j.map(e=>`<div class="life-entry"><small>${e.stamp}</small><b>${e.title}</b><div>${e.text}</div></div>`).join(""):'<div class="empty">Aucun événement personnel important.</div>';
+ $("personMemory").innerHTML=m.length?m.map(e=>`<span class="memory-chip" title="${e.stamp}">${e.text}</span>`).join(""):'<div class="empty">Aucun souvenir marquant.</div>';
+}
+
+function addPopulation(ci,count){
+ let v=S.civs[ci],cap=v.populationCap||500,existing=S.people.filter(p=>p.ci===ci).length,room=Math.max(0,cap-existing),n=Math.min(Math.max(0,count),room);
+ for(let i=0;i<n;i++){let [px,py]=landPoint(ci);S.people.push(makePerson(ci,px,py))}
+ assignHomes(ci);update();return n;
+}
+function removePopulation(ci,count){
+ let pool=S.people.filter(p=>p.ci===ci).sort((a,b)=>a.age-b.age),n=Math.min(count,pool.length);
+ let ids=new Set(pool.slice(0,n).map(p=>p.id));
+ for(const p of S.people)if(ids.has(p.id)&&p.partner){let q=findPerson(p.partner);if(q)q.partner=null}
+ for(const b of S.buildings)b.residents=b.residents.filter(id=>!ids.has(id));
+ S.people=S.people.filter(p=>!ids.has(p.id));update();return n;
+}
+function setPopulation(ci,target){
+ target=Math.max(0,Math.floor(target));let current=S.people.filter(p=>p.ci===ci).length;
+ return target>current?addPopulation(ci,target-current):removePopulation(ci,current-target);
+}
+function configureCivilizationCount(target){
+ target=clamp(Math.floor(target),2,8);
+ while(S.civs.length<target){let i=S.civs.length;S.civs.push(civ(i));let [cx,cy]=landPoint(i);for(let h=0;h<7;h++)addBuilding(i,"hut",cx+rnd(-140,140),cy+rnd(-140,140))}
+ while(S.civs.length>target){let i=S.civs.length-1;S.people=S.people.filter(p=>p.ci!==i);S.buildings=S.buildings.filter(b=>b.ci!==i);S.civs.pop()}
+ active=Math.min(active,S.civs.length-1);tabs();editor();
+}
+function applyScenarioPreset(name){
+ if(name==="duel"){ $("scenarioCivs").value=2;$("scenarioPop").value=120;$("seaLevel").value=40;$("rivers").value=6; }
+ else if(name==="tribes"){ $("scenarioCivs").value=8;$("scenarioPop").value=55;$("seaLevel").value=38;$("rivers").value=10; }
+ else if(name==="islands"){ $("scenarioCivs").value=5;$("scenarioPop").value=70;$("seaLevel").value=56;$("rivers").value=4; }
+ else if(name==="warworld"){ $("scenarioCivs").value=6;$("scenarioPop").value=130;$("seaLevel").value=38;$("rivers").value=8; }
+ else if(name==="peaceful"){ $("scenarioCivs").value=4;$("scenarioPop").value=90;$("seaLevel").value=42;$("rivers").value=9; }
+ else if(name==="techrace"){ $("scenarioCivs").value=4;$("scenarioPop").value=100;$("seaLevel").value=40;$("rivers").value=7; }
+ for(const id of ["seaLevel","rivers"]){let ev=new Event("input");$(id).dispatchEvent(ev)}
+}
+function setPersonField(id,key,parse=v=>v){
+ $(id).addEventListener("input",()=>{if(selected?.type!=="person")return;selected.obj[key]=parse($(id).value);if(id==="editFirst"||id==="editLast"||id==="editRole")refreshSelectedPerson()});
+}
 function update(){
  let v=S.civs[active];if(v){$("pop").textContent=S.people.filter(p=>p.ci===active).length;$("era").textContent=eras[eraIndex(v)].name;$("science").textContent=Math.floor(v.science);$("tech").textContent=Math.floor(v.tech);$("military").textContent=Math.floor(v.military);$("cities").textContent=v.cities;
  $("techTree").innerHTML=techs.map(t=>`<div class="unlock ${v.discoveries.includes(t[0])?"ok":"locked"}">${v.discoveries.includes(t[0])?"✓":"🔒"} ${t[0]}</div>`).join("");let e=eraIndex(v);$("buildingList").innerHTML=buildings.map(b=>`<div class="unlock ${b.era<=e?"ok":"locked"}">${b.era<=e?"✓":"🔒"} ${b.name}</div>`).join("");$("weaponList").innerHTML=weapons.map(w=>`<div class="unlock ${w.era<=e?"ok":"locked"}">${w.era<=e?"✓":"🔒"} ${w.name}</div>`).join("")}
- $("clock").textContent=`A${S.year} · J${S.day} · ${String(Math.floor(S.minute/60)).padStart(2,"0")}:${String(S.minute%60).padStart(2,"0")}`;$("weather").textContent="🌦 "+S.weather;$("season").textContent=["🌱 Printemps","☀ Été","🍂 Automne","❄ Hiver"][S.season];let best=Math.max(...S.civs.map(eraIndex));$("eraGlobal").textContent=`${eras[best].icon} ${eras[best].name}`;$("worldPop").textContent=`👥 ${S.people.length}`;
+ $("clock").textContent=`A${S.year} · J${S.day} · ${String(Math.floor(S.minute/60)).padStart(2,"0")}:${String(S.minute%60).padStart(2,"0")}`;$("weather").textContent="🌦 "+S.weather;$("season").textContent=["🌱 Printemps","☀ Été","🍂 Automne","❄ Hiver"][S.season];let best=Math.max(...S.civs.map(eraIndex));$("eraGlobal").textContent=`${eras[best].icon} ${eras[best].name}`;$("worldPop").textContent=`👥 ${S.people.length}`;$("totalPopHud").textContent=S.people.length;$("totalBuildingsHud").textContent=S.buildings.length;$("totalCivsHud").textContent=S.civs.length;$("warStateHud").textContent=S.war?"Guerre":"Paix";$("storyStateHud").textContent=story.replayMode?"Replay":story.cinematic?"Ralenti":"Histoire";
 }
 for(const f of fields)$(f).oninput=()=>{let v=S.civs[active];v[f]=+$(f).value;$(f+"V").textContent=v[f]};
 $("civName").onchange=()=>{S.civs[active].name=$("civName").value||S.civs[active].name;tabs()};
+
+$("civColor").oninput=()=>{let v=S.civs[active];v.color=$("civColor").value;for(const p of S.people)if(p.ci===active&&(!p.clothes||p.clothes===COLORS[active]))p.clothes=v.color};
+$("civStyle").onchange=()=>{S.civs[active].style=$("civStyle").value};
+
+$("targetPopulation").onchange=()=>{S.civs[active].targetPopulation=clamp(+$("targetPopulation").value||0,0,2000)};
+$("populationCap").onchange=()=>{let v=S.civs[active];v.populationCap=clamp(+$("populationCap").value||10,10,5000);if(v.targetPopulation>v.populationCap){v.targetPopulation=v.populationCap;$("targetPopulation").value=v.targetPopulation}};
+$("birthRateMode").onchange=()=>S.civs[active].birthRate=+$("birthRateMode").value;
+$("ageProfile").onchange=()=>S.civs[active].ageProfile=$("ageProfile").value;
+$("applyPopulation").onclick=()=>{let v=S.civs[active];v.targetPopulation=clamp(+$("targetPopulation").value||0,0,v.populationCap||5000);setPopulation(active,v.targetPopulation);showToast(`👥 ${v.name} : ${S.people.filter(p=>p.ci===active).length} habitants`)};
+$("add10Pop").onclick=()=>{addPopulation(active,10);editor()};
+$("add100Pop").onclick=()=>{addPopulation(active,100);editor()};
+$("remove10Pop").onclick=()=>{removePopulation(active,10);editor()};
+$("remove100Pop").onclick=()=>{removePopulation(active,100);editor()};
+
+$("applyScenarioPreset").onclick=()=>applyScenarioPreset($("scenarioPreset").value);
+$("startScenario").onclick=()=>{
+ let preset=$("scenarioPreset").value,civsN=clamp(+$("scenarioCivs").value||2,2,8),popN=clamp(+$("scenarioPop").value||80,1,1000);
+ reset();configureCivilizationCount(civsN);
+ for(let i=0;i<S.civs.length;i++){
+   S.civs[i].targetPopulation=popN;
+   S.civs[i].populationCap=Math.max(popN*4,200);
+   if(preset==="techrace"){S.civs[i].intel=clamp(70+i*5,0,100);S.civs[i].curiosity=85;S.civs[i].agg=20}
+   if(preset==="warworld"){S.civs[i].agg=85;S.civs[i].courage=85}
+   if(preset==="peaceful"){S.civs[i].agg=10;S.civs[i].coop=90}
+   setPopulation(i,popN);
+ }
+ if(preset==="warworld")S.war=true;
+ tabs();editor();fitWorld();showToast("🎮 Scénario lancé");
+};
+
+
+setPersonField("editFirst","first",String);
+setPersonField("editLast","last",String);
+setPersonField("editAge","age",v=>clamp(+v||0,0,120));
+setPersonField("editSex","sex",String);
+setPersonField("editRole","role",String);
+setPersonField("editScale","scale",Number);
+setPersonField("editSkin","skin",String);
+setPersonField("editHair","hair",String);
+setPersonField("editClothes","clothes",String);
+setPersonField("editHairStyle","hairStyle",String);
+$("editCiv").onchange=()=>{if(selected?.type!=="person")return;let p=selected.obj;p.ci=clamp(+$("editCiv").value,0,S.civs.length-1);p.clothes=S.civs[p.ci].color;active=p.ci;tabs();editor();refreshSelectedPerson()};
+const pRangeMap={Intelligence:"intelligence",Strength:"strength",Charisma:"charisma",Aggression:"aggression",Curiosity:"curiosity",Fertility:"fertility",Loyalty:"loyalty",Courage:"courage",Mood:"mood",Health:"hp"};
+for(const [label,key] of Object.entries(pRangeMap)){
+ $("edit"+label).oninput=()=>{if(selected?.type!=="person")return;let val=+$("edit"+label).value;selected.obj[key]=val;$("edit"+label+"V").textContent=Math.round(val)}
+}
+$("healPerson").onclick=()=>{if(selected?.type!=="person")return;selected.obj.hp=100;selected.obj.sick=false;selected.obj.hunger=100;selected.obj.mood=Math.max(selected.obj.mood,80);populatePersonEditor(selected.obj);detailPerson(selected.obj);showToast("❤️ PNJ soigné")};
+$("rerollPerson").onclick=()=>{if(selected?.type!=="person")return;let p=selected.obj,v=S.civs[p.ci];p.intelligence=clamp(Math.round(v.intel+rnd(-25,25)),1,100);p.strength=Math.round(rnd(20,100));p.charisma=Math.round(rnd(20,100));p.aggression=clamp(Math.round(v.agg+rnd(-25,25)),1,100);p.curiosity=Math.round(rnd(10,100));p.fertility=Math.round(rnd(10,100));p.loyalty=Math.round(rnd(20,100));p.courage=Math.round(rnd(15,100));p.mood=Math.round(rnd(40,100));p.skin=pick(["#d9aa83","#c8946e","#a96f4f","#7b4b36","#e4b995"]);p.hair=pick(["#241912","#3a291f","#6b4d32","#b57b44","#d6b88b","#191919"]);p.hairStyle=pick(["short","long","curly","mohawk","bald"]);populatePersonEditor(p);detailPerson(p);showToast("🎲 PNJ randomisé")};
+$("duplicatePerson").onclick=()=>{if(selected?.type!=="person")return;let p=selected.obj,q=makePerson(p.ci,p.x+18,p.y+18,p.age);Object.assign(q,{first:p.first,last:p.last,sex:p.sex,role:p.role,intelligence:p.intelligence,strength:p.strength,charisma:p.charisma,aggression:p.aggression,curiosity:p.curiosity,fertility:p.fertility,loyalty:p.loyalty,courage:p.courage,mood:p.mood,scale:p.scale,skin:p.skin,hair:p.hair,clothes:p.clothes,hairStyle:p.hairStyle});S.people.push(q);showToast("👥 PNJ dupliqué")};
+$("makeLeader").onclick=()=>{if(selected?.type!=="person")return;let p=selected.obj,e=eraIndex(S.civs[p.ci]);p.role=e===0?"Chef de tribu":e<=1?"Chef":e<=3?"Maire":"Président";p.charisma=Math.max(p.charisma,80);p.loyalty=Math.max(p.loyalty,75);p.influence=Math.max(p.influence||0,85);p.fame=(p.fame||0)+15;p.clothes="#d0a744";worldEvent({type:"coup",title:`Nouveau dirigeant : ${pname(p)}`,text:`${pname(p)} prend la tête de ${S.civs[p.ci].name}.`,score:86,ci:p.ci,personId:p.id,x:p.x,y:p.y});populatePersonEditor(p);detailPerson(p);showToast("👑 Nouveau dirigeant")};
+
+$("editBuildingName").oninput=()=>{if(selected?.type!=="building")return;selected.obj.name=$("editBuildingName").value||selected.obj.name;$("inspectorTitle").textContent=selected.obj.name};
+$("editBuildingScale").onchange=()=>{if(selected?.type!=="building")return;selected.obj.scale=+$("editBuildingScale").value};
+$("editBuildingRoof").oninput=()=>{if(selected?.type!=="building")return;selected.obj.roof=$("editBuildingRoof").value};
+
 $("play").onclick=()=>S.run=true;$("pause").onclick=()=>S.run=false;$("regen").onclick=reset;
 function setCinema(on){document.body.classList.toggle("cinema",on)}
 $("cinema").onclick=()=>setCinema(true);
@@ -369,17 +763,120 @@ $("cinemaSettings").onclick=()=>{setCinema(false);openInspector("worldTab")};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("cinema"))setCinema(false)});
 $("fitWorld").onclick=fitWorld;
 $("centerView").onclick=()=>{camera.x=W/2-c.width/(2*camera.zoom);camera.y=H/2-c.height/(2*camera.zoom);clampCamera()};
-$("war").onclick=()=>{S.war=true;log("Guerre globale déclarée.");showToast("⚔ Guerre globale")};$("peace").onclick=()=>{S.war=false;log("Paix imposée.");showToast("☮ Paix")};$("breakWalls").onclick=()=>{S.walls=[];log("Tous les murs sont détruits.")};
+$("war").onclick=()=>{S.war=true;let l=leaderForCiv(active);worldEvent({type:"war",title:"Guerre générale",text:"Les civilisations entrent dans une période de conflit ouvert.",score:96,ci:active,personId:l?.id,x:l?.x,y:l?.y});showToast("⚔ Guerre globale")};
+$("peace").onclick=()=>{S.war=false;let l=leaderForCiv(active);worldEvent({type:"peace",title:"Retour à la paix",text:"Les affrontements cessent et les peuples commencent à reconstruire.",score:91,ci:active,personId:l?.id,x:l?.x,y:l?.y});showToast("☮ Paix")};
+$("breakWalls").onclick=()=>{S.walls=[];worldEvent({type:"world",title:"Les murs tombent",text:"Les barrières qui séparaient les peuples sont détruites.",score:82,x:W/2,y:H/2})};
 $("addCiv").onclick=()=>{if(S.civs.length>=8)return;let i=S.civs.length;S.civs.push(civ(i));let [cx,cy]=landPoint(i);for(let h=0;h<7;h++)addBuilding(i,"hut",cx+rnd(-140,140),cy+rnd(-140,140));for(let k=0;k<45;k++){let [px,py]=landPoint(i);S.people.push(makePerson(i,px,py))}assignHomes(i);active=i;tabs();editor();showToast("🏛 Nouvelle civilisation")};
 $("removeCiv").onclick=()=>{if(S.civs.length<=2)return;let i=active;S.people=S.people.filter(p=>p.ci!==i);S.buildings=S.buildings.filter(b=>b.ci!==i);S.civs.splice(i,1);for(const p of S.people)if(p.ci>i)p.ci--;for(const b of S.buildings)if(b.ci>i)b.ci--;active=0;tabs();editor()};
 $("spawnPerson").onclick=()=>{let [px,py]=landPoint(active);S.people.push(makePerson(active,px,py));assignHomes(active);showToast("👤 PNJ ajouté")};
 $("spawnFamily").onclick=()=>{let [px,py]=landPoint(active),a=makePerson(active,px,py,Math.floor(rnd(22,38))),b=makePerson(active,px+8,py+8,Math.floor(rnd(22,38)));b.sex=a.sex==="F"?"M":"F";a.partner=b.id;b.partner=a.id;a.relationship=b.relationship=85;S.people.push(a,b);let h=addBuilding(active,eraIndex(S.civs[active])?"house":"hut",px+22,py+15,"Maison familiale");a.home=b.home=h.id;h.residents.push(a.id,b.id);showToast("💞 Famille ajoutée")};
-function disaster(d){let p=+$("disasterPower").value;if(d==="famine")S.res=S.res.filter(r=>r.type!=="food"||Math.random()>p/100);if(d==="plague")for(const q of S.people)if(Math.random()<p/150)q.sick=true;if(d==="meteor"||d==="nuke"){let mx=rnd(0,W),my=rnd(0,H),rr=(d==="nuke"?280:160)+p*5;for(const q of S.people)if((q.x-mx)**2+(q.y-my)**2<rr*rr)q.hp-=200;S.buildings=S.buildings.filter(b=>(b.x-mx)**2+(b.y-my)**2>=rr*rr)}if(d==="storm")S.weather="Tempête";if(d==="fire")for(const q of S.people)if(Math.random()<p/500)q.hp-=rnd(10,60);log("Catastrophe : "+d);showToast("☄ "+d)}
+function disaster(d){
+ let pow=+$("disasterPower").value,mx=rnd(0,W),my=rnd(0,H),affected=0;
+ if(d==="famine"){let before=S.res.length;S.res=S.res.filter(r=>r.type!=="food"||Math.random()>pow/100);affected=before-S.res.length}
+ if(d==="plague")for(const q of S.people)if(Math.random()<pow/150){q.sick=true;affected++}
+ if(d==="meteor"||d==="nuke"){let rr=(d==="nuke"?280:160)+pow*5;for(const q of S.people)if((q.x-mx)**2+(q.y-my)**2<rr*rr){q.hp-=200;affected++}S.buildings=S.buildings.filter(b=>(b.x-mx)**2+(b.y-my)**2>=rr*rr)}
+ if(d==="storm"){S.weather="Tempête";affected=S.people.length}
+ if(d==="fire")for(const q of S.people)if(Math.random()<pow/500){q.hp-=rnd(10,60);affected++}
+ let names={famine:"Famine",plague:"Grande épidémie",meteor:"Impact de météorite",nuke:"Catastrophe stratégique",storm:"Tempête majeure",fire:"Incendies généralisés"};
+ worldEvent({type:d==="plague"?"disease":"disaster",title:names[d]||"Catastrophe",text:`L’événement touche directement ou indirectement ${affected} éléments du monde.`,score:d==="nuke"?99:d==="meteor"?94:82,x:mx,y:my});
+ showToast("☄ "+(names[d]||d))
+}
 document.querySelectorAll(".disaster").forEach(b=>b.onclick=()=>disaster(b.dataset.disaster));
+
+$("healAll").onclick=()=>{for(const p of S.people){p.hp=100;p.sick=false}showToast("❤️ Population soignée")};
+$("feedAll").onclick=()=>{for(const p of S.people)p.hunger=100;showToast("🍲 Tout le monde est nourri")};
+$("agePlus").onclick=()=>{for(const p of S.people)p.age=Math.min(120,p.age+10);showToast("⏩ +10 ans")};
+$("ageMinus").onclick=()=>{for(const p of S.people)p.age=Math.max(0,p.age-10);showToast("⏪ −10 ans")};
+$("boostScience").onclick=()=>{for(const v of S.civs)v.science+=500;showToast("🧪 Science +500")};
+$("boostTech").onclick=()=>{for(const v of S.civs)v.tech+=500;showToast("⚙ Technologie +500")};
+$("clearDisease").onclick=()=>{for(const p of S.people)p.sick=false;showToast("💊 Toutes les maladies supprimées")};
+
+
+/* ---------- Replay / save system ---------- */
+function replaySnapshotData(){
+ return {
+  stamp:simStamp(),year:S.year,day:S.day,minute:S.minute,season:S.season,weather:S.weather,war:S.war,tick:S.tick,
+  people:structuredClone(S.people),buildings:structuredClone(S.buildings),civs:structuredClone(S.civs),
+  res:structuredClone(S.res),walls:structuredClone(S.walls)
+ };
+}
+function captureReplaySnapshot(ev=null){
+ if(!R.recording||story.replayMode)return;
+ let last=R.snapshots.at(-1);if(last&&last.year===S.year&&last.day===S.day&&ev?.score<78)return;
+ let snap=replaySnapshotData();snap.event=ev?{title:ev.title,text:ev.text,type:ev.type,score:ev.score,stamp:ev.stamp}:null;
+ R.snapshots.push(snap);
+ if(R.snapshots.length>140){R.snapshots.splice(1,1)}
+ R.lastCaptureYear=S.year;updateReplayUI();
+}
+function maybePeriodicReplayCapture(){
+ if(!R.recording||story.replayMode)return;
+ if(S.year>=R.lastCaptureYear+2&&S.day<4)captureReplaySnapshot(null)
+}
+function applyReplaySnapshot(snap){
+ S.people=structuredClone(snap.people);S.buildings=structuredClone(snap.buildings);S.civs=structuredClone(snap.civs);S.res=structuredClone(snap.res);S.walls=structuredClone(snap.walls);
+ S.year=snap.year;S.day=snap.day;S.minute=snap.minute;S.season=snap.season;S.weather=snap.weather;S.war=snap.war;S.tick=snap.tick;
+ selected=null;active=Math.min(active,S.civs.length-1);tabs();editor();update();draw()
+}
+function updateReplayUI(){
+ let n=R.snapshots.length;$("replayInfo").textContent=`Replay ${R.recording?"actif":"en pause"} · ${n} point${n>1?"s":""} enregistré${n>1?"s":""}`;
+ $("replayPanelInfo").textContent=n?`${n} points · de ${R.snapshots[0].stamp} à ${R.snapshots.at(-1).stamp}`:"Aucun replay";
+ $("replayTimeline").max=Math.max(0,n-1);$("replayTimeline").value=Math.min(+$("replayTimeline").value,n-1);
+ $("replayMarkers").innerHTML=R.snapshots.map((s,i)=>`<button class="replay-marker ${s.event?.score>=90?"historic":s.event?.score>=78?"major":""}" data-ridx="${i}" title="${s.event?.title||s.stamp}"></button>`).join("");
+}
+function enterReplay(i=0){
+ if(!R.snapshots.length){showToast("🎬 Aucun replay enregistré");return}
+ if(!story.replayMode)R.liveState=replaySnapshotData();
+ story.replayMode=true;S.run=false;R.playing=false;$("replayPlay").textContent="▶ Rejouer";$("replayPanel").classList.add("open");showReplayIndex(i)
+}
+function showReplayIndex(i){
+ i=clamp(Math.floor(i),0,R.snapshots.length-1);$("replayTimeline").value=i;applyReplaySnapshot(R.snapshots[i]);
+ let e=R.snapshots[i].event;$("replayEventCard").innerHTML=e?`<b>${eventIcon(e.type)} ${e.title}</b><br>${e.text}<br><small>${e.stamp}</small>`:`<b>Point de contrôle</b><br>${R.snapshots[i].stamp}`
+}
+function exitReplay(){
+ clearInterval(story.replayTimer);R.playing=false;if(R.liveState)applyReplaySnapshot(R.liveState);story.replayMode=false;R.liveState=null;$("replayPanel").classList.remove("open")
+}
+function toggleReplayPlay(){
+ if(!R.snapshots.length)return;R.playing=!R.playing;$("replayPlay").textContent=R.playing?"⏸ Pause":"▶ Rejouer";clearInterval(story.replayTimer);
+ if(R.playing)story.replayTimer=setInterval(()=>{let i=+$("replayTimeline").value;if(i>=R.snapshots.length-1){R.playing=false;clearInterval(story.replayTimer);$("replayPlay").textContent="▶ Rejouer";return}showReplayIndex(i+1)},900)
+}
+function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open("ai-world-v13",1);r.onupgradeneeded=()=>r.result.createObjectStore("saves");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function dbPut(key,val){let db=await openDB();return new Promise((res,rej)=>{let tx=db.transaction("saves","readwrite");tx.objectStore("saves").put(val,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function dbGet(key){let db=await openDB();return new Promise((res,rej)=>{let tx=db.transaction("saves","readonly"),q=tx.objectStore("saves").get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+function fullSavePayload(){return {version:13,seed,settings:{sea:$("seaLevel").value,relief:$("relief").value,humidity:$("humidity").value,temp:$("temperature").value,rivers:$("rivers").value},S:structuredClone(S),history:structuredClone(story.worldEvents),replay:{snapshots:structuredClone(R.snapshots),events:structuredClone(R.events)}}}
+function restorePayload(data){
+ if(!data?.S)return false;seed=data.seed??seed;S=data.S;story.worldEvents=data.history||[];R.snapshots=data.replay?.snapshots||[];R.events=data.replay?.events||[];R.recording=$("recordReplay").checked;R.lastCaptureYear=S.year;
+ selected=null;active=0;renderWorldJournal();tabs();editor();update();fitWorld();draw();updateReplayUI();return true
+}
+$("saveSimulation").onclick=async()=>{try{await dbPut("latest",fullSavePayload());showToast("💾 Simulation sauvegardée")}catch(e){console.error(e);showToast("⚠ Sauvegarde impossible")}};
+$("loadSimulation").onclick=async()=>{try{let d=await dbGet("latest");if(d&&restorePayload(d))showToast("📂 Simulation chargée");else showToast("Aucune sauvegarde")}catch(e){console.error(e);showToast("⚠ Chargement impossible")}};
+$("recordReplay").onchange=()=>{R.recording=$("recordReplay").checked;if(R.recording)captureReplaySnapshot(null);updateReplayUI()};
+$("openReplay").onclick=()=>enterReplay(Math.max(0,R.snapshots.length-1));
+$("closeReplay").onclick=()=>$("replayPanel").classList.remove("open");
+$("replayExit").onclick=exitReplay;
+$("replayPlay").onclick=toggleReplayPlay;
+$("replayPrev").onclick=()=>showReplayIndex(+$("replayTimeline").value-1);
+$("replayNext").onclick=()=>showReplayIndex(+$("replayTimeline").value+1);
+$("replayTimeline").oninput=()=>{if(!story.replayMode)enterReplay(+$("replayTimeline").value);else showReplayIndex(+$("replayTimeline").value)};
+$("replayMarkers").onclick=e=>{let b=e.target.closest("[data-ridx]");if(b){if(!story.replayMode)enterReplay(+b.dataset.ridx);else showReplayIndex(+b.dataset.ridx)}};
+$("exportReplay").onclick=()=>{
+ let data={version:13,type:"AIWorldReplay",created:new Date().toISOString(),seed,history:story.worldEvents,snapshots:R.snapshots};
+ let blob=new Blob([JSON.stringify(data)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`aiworld-replay-A${S.year}.aiworld`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);showToast("📤 Replay exporté")
+};
+$("importReplay").onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let d=JSON.parse(await f.text());if(!Array.isArray(d.snapshots))throw Error("format");R.snapshots=d.snapshots;story.worldEvents=d.history||story.worldEvents;renderWorldJournal();updateReplayUI();enterReplay(0);showToast("📥 Replay importé")}catch(err){showToast("⚠ Replay invalide")}e.target.value=""};
+$("journalImportance").onchange=renderWorldJournal;
+document.querySelectorAll(".life-tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".life-tab").forEach(q=>q.classList.toggle("active",q===b));document.querySelectorAll(".life-content").forEach(q=>q.classList.toggle("active",q.id===b.dataset.life))});
+
 document.querySelectorAll(".cat").forEach(b=>b.onclick=()=>{document.querySelectorAll(".cat").forEach(q=>q.classList.remove("active"));document.querySelectorAll(".tool-row").forEach(q=>q.classList.remove("active"));b.classList.add("active");$(b.dataset.cat).classList.add("active")});
 document.querySelectorAll(".tool[data-tool]").forEach(b=>b.onclick=()=>{currentTool=b.dataset.tool;document.querySelectorAll(".tool[data-tool]").forEach(q=>q.classList.remove("active"));b.classList.add("active")});
 document.querySelectorAll(".it").forEach(b=>b.onclick=()=>openInspector(b.dataset.itab));$("closeInspector").onclick=()=>$("inspector").classList.remove("open");$("showLog").onclick=()=>$("logPanel").classList.add("open");$("closeLog").onclick=()=>$("logPanel").classList.remove("open");$("showWorld").onclick=()=>openInspector("worldTab");$("showCiv").onclick=()=>openInspector("civTab");$("showSelected").onclick=()=>openInspector("detailTab");$("openCiv").onclick=()=>openInspector("civTab");
-for(const [id,out,suf] of [["seaLevel","seaLevelV","%"],["relief","reliefV","%"],["humidity","humidityV","%"],["temperature","temperatureV","%"],["rivers","riversV",""],["resourceDensity","resourceDensityV","%"],["weatherRate","weatherRateV","%"],["disasterPower","disasterPowerV",""]]){let f=()=>$(out).textContent=$(id).value+suf;$(id).oninput=f;f()}
+for(const [id,out,suf] of [["seaLevel","seaLevelV","%"],["relief","reliefV","%"],["humidity","humidityV","%"],["temperature","temperatureV","%"],["rivers","riversV",""],["resourceDensity","resourceDensityV","%"],["npcVisualScale","npcVisualScaleV","%"],["buildingVisualScale","buildingVisualScaleV","%"],["textureDetail","textureDetailV","%"],["weatherRate","weatherRateV","%"],["disasterPower","disasterPowerV",""]]){let f=()=>$(out).textContent=$(id).value+suf;$(id).oninput=f;f()}
+
+
+$("worldScale").onchange=()=>{
+ const s=+$("worldScale").value;
+ $("mapSizeLabel").textContent=s===.75?"5400×3150":s===1.25?"9000×5250":"7200×4200";
+ showToast(s===1.25?"🗺 Vue monde immense":"🗺 Taille d'affichage mise à jour");
+};
 
 /* Mouse camera: right-drag or middle-drag. Wheel zooms around cursor. */
 c.addEventListener("contextmenu",e=>e.preventDefault());
@@ -406,6 +903,6 @@ c.addEventListener("wheel",e=>{
  camera.zoom=newZoom;camera.x=before.x-cx/camera.zoom;camera.y=before.y-cy/camera.zoom;clampCamera();
 },{passive:false});
 
-function loop(){if(S.run){let n=+$("speed").value;for(let i=0;i<n;i++)tick()}draw();requestAnimationFrame(loop)}
+function loop(){updateStoryFrame();if(S.run&&!story.replayMode){let n=story.cinematic?1:+$("speed").value;for(let i=0;i<n;i++)tick()}draw();requestAnimationFrame(loop)}
 reset();loop();
 })();
