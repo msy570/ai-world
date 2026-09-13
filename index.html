@@ -1,1 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI World</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>AI World</h1>
+        <p>Sandbox de simulation autonome</p>
+      </div>
+      <div class="top-actions">
+        <button id="playBtn">▶ Lancer</button>
+        <button id="pauseBtn">Ⅱ Pause</button>
+        <button id="newWorldBtn">↻ Nouveau monde</button>
+        <label>Vitesse
+          <select id="speedSelect">
+            <option value="1">×1</option>
+            <option value="3">×3</option>
+            <option value="8">×8</option>
+            <option value="20">×20</option>
+          </select>
+        </label>
+      </div>
+    </header>
 
+    <main class="layout">
+      <section class="world-panel">
+        <div class="toolbar" id="toolbar">
+          <button class="tool active" data-tool="select">☝ Sélection</button>
+          <button class="tool" data-tool="grass">🌿 Plaine</button>
+          <button class="tool" data-tool="forest">🌲 Forêt</button>
+          <button class="tool" data-tool="desert">🏜 Désert</button>
+          <button class="tool" data-tool="snow">❄ Neige</button>
+          <button class="tool" data-tool="water">🌊 Eau</button>
+          <button class="tool" data-tool="food">🍎 Nourriture</button>
+          <button class="tool" data-tool="wood">🪵 Bois</button>
+          <button class="tool" data-tool="gold">🪙 Or</button>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="worldCanvas" width="1280" height="720"></canvas>
+          <div class="canvas-help">Molette = zoom · Clic droit/glisser = déplacer · Clic gauche = utiliser l’outil</div>
+        </div>
+
+        <div class="statusbar">
+          <span>Jour <strong id="dayStat">1</strong></span>
+          <span>Population <strong id="populationStat">0</strong></span>
+          <span>Objets <strong id="objectStat">0</strong></span>
+          <span>Zoom <strong id="zoomStat">100%</strong></span>
+          <span id="statusText">Monde prêt.</span>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="card">
+          <h2>Monde</h2>
+          <label>Taille du pinceau <span id="brushValue">90</span>
+            <input id="brushSize" type="range" min="30" max="300" value="90" />
+          </label>
+          <div class="grid2">
+            <button id="addNpcBtn">+ 1 PNJ</button>
+            <button id="add50NpcBtn">+ 50 PNJ</button>
+            <button id="scatterItemsBtn">Objets aléatoires</button>
+            <button id="regenBiomesBtn">Regénérer biomes</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>PNJ sélectionné</h2>
+          <p id="noNpcSelected" class="muted">Clique sur un PNJ dans la carte.</p>
+          <div id="npcEditor" hidden>
+            <div class="row">
+              <input id="npcName" type="text" />
+              <button id="randomNameBtn" title="Nom aléatoire">🎲</button>
+            </div>
+
+            <label>Personnalité
+              <select id="npcTrait">
+                <option value="calm">Calme</option>
+                <option value="aggressive">Agressif</option>
+                <option value="greedy">Avide</option>
+                <option value="social">Sociable</option>
+                <option value="explorer">Explorateur</option>
+              </select>
+            </label>
+
+            <label>Agressivité <span id="npcAggValue">30%</span>
+              <input id="npcAgg" type="range" min="0" max="100" value="30" />
+            </label>
+
+            <label>Vitesse <span id="npcSpeedValue">1.0</span>
+              <input id="npcSpeed" type="range" min="5" max="20" value="10" />
+            </label>
+
+            <div class="npc-stats">
+              <span>❤️ <b id="npcHp">100</b></span>
+              <span>🍗 <b id="npcHunger">100</b></span>
+              <span>🎂 <b id="npcAge">0</b></span>
+            </div>
+
+            <div id="npcInventory" class="inventory"></div>
+
+            <div class="grid3">
+              <button class="give-item" data-item="food">🍎 +5</button>
+              <button class="give-item" data-item="wood">🪵 +5</button>
+              <button class="give-item" data-item="gold">🪙 +5</button>
+            </div>
+
+            <button id="removeNpcBtn" class="danger">Supprimer ce PNJ</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Légende</h2>
+          <div class="legend">
+            <span><i class="dot calm"></i> Calme</span>
+            <span><i class="dot aggressive"></i> Agressif</span>
+            <span><i class="dot greedy"></i> Avide</span>
+            <span><i class="dot social"></i> Sociable</span>
+            <span><i class="dot explorer"></i> Explorateur</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
