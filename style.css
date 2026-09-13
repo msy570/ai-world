@@ -332,3 +332,8 @@ body.following #selected:after{content:" · 🎥 suivi";color:#7db3cf}
 
 /* V16 Smart History */
 .history-ticker{position:absolute;z-index:28;top:42px;left:50%;transform:translate(-50%,-10px);min-width:300px;max-width:min(700px,72vw);display:flex;gap:9px;align-items:center;padding:7px 11px;border-radius:8px;border:1px solid rgba(103,132,144,.42);background:rgba(10,18,22,.88);box-shadow:0 8px 25px rgba(0,0,0,.3);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:.22s}.history-ticker.show{opacity:1;transform:translate(-50%,0)}.history-ticker>span{font-size:15px}.history-ticker div{min-width:0}.history-ticker b{display:block;color:#eef5f7;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-ticker small{display:block;color:#8ca2ab;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}.history-ticker.historic{border-color:rgba(218,104,119,.6);background:rgba(34,17,21,.9)}.history-ticker.major{border-color:rgba(210,170,73,.55);background:rgba(31,27,15,.9)}.performance-card small{display:block;color:#718b95;font-size:8px;line-height:1.45;margin-top:6px}#perfHud{color:#8fc2a8}body.story-cinematic .history-ticker{opacity:0}@media(max-width:700px){.history-ticker{top:38px;min-width:240px;max-width:86vw}}
+
+
+/* V17 additions */
+.scenario-card select, .scenario-card input { min-height: 34px; }
+.city-card, .diplo-row { backdrop-filter: blur(2px); }

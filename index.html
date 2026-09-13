@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V16.2 — Readable Date</title>
+  <title>AI World V17 — Dynamic Realms</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V16.2 · Readable Date</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V17 · Dynamic Realms</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -295,17 +295,38 @@
           <label class="field"><span>Préréglage</span>
             <select id="scenarioPreset">
               <option value="custom">Personnalisé</option>
+              <option value="solo">Solo / une seule civilisation</option>
               <option value="duel">Duel 2 civilisations</option>
               <option value="tribes">8 tribus primitives</option>
               <option value="islands">Archipel</option>
+              <option value="frontier">Frontière séparée</option>
+              <option value="coldwar">Guerre froide</option>
               <option value="warworld">Monde en guerre</option>
               <option value="peaceful">Monde paisible</option>
               <option value="techrace">Course technologique</option>
+              <option value="empire">Empire émergent</option>
+              <option value="shattered">Monde fracturé</option>
+              <option value="cataclysm">Âge des catastrophes</option>
             </select>
           </label>
           <div class="editor-grid two">
-            <label>Nb civilisations<input id="scenarioCivs" type="number" min="2" max="8" value="2"></label>
+            <label>Nb civilisations<input id="scenarioCivs" type="number" min="1" max="8" value="1"></label>
             <label>Population / civ<input id="scenarioPop" type="number" min="1" max="1000" value="80"></label>
+          </div>
+          <div class="editor-grid two">
+            <label>Civilisations séparées au départ
+              <select id="scenarioWalls">
+                <option value="none" selected>Aucun mur</option>
+                <option value="dividers">Murs séparateurs</option>
+              </select>
+            </label>
+            <label>Territoires initiaux
+              <select id="scenarioTerritoryStyle">
+                <option value="balanced" selected>Équilibrés</option>
+                <option value="compact">Compacts</option>
+                <option value="wide">Étendus</option>
+              </select>
+            </label>
           </div>
           <div class="scenario-buttons">
             <button id="applyScenarioPreset">Charger preset</button>
@@ -314,7 +335,7 @@
         </div>
 
         <h3>Génération</h3>
-        <p class="panel-note">La V14 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
+        <p class="panel-note">La V17 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
           <label>Océans <b id="seaLevelV">42%</b><input id="seaLevel" type="range" min="20" max="70" value="42"></label>
           <label>Relief <b id="reliefV">55%</b><input id="relief" type="range" min="0" max="100" value="55"></label>
@@ -327,6 +348,15 @@
             <option value="1" selected>Très grande</option>
             <option value="1.25">Immense</option>
           </select></label>
+          <div class="editor-grid two">
+            <label>Civs au nouveau monde<input id="defaultCivCount" type="number" min="1" max="8" value="1"></label>
+            <label>Murs initiaux
+              <select id="defaultWalls">
+                <option value="none" selected>Aucun mur</option>
+                <option value="dividers">Murs séparateurs</option>
+              </select>
+            </label>
+          </div>
         </div>
         <button id="regen" class="full primary">🗺 Générer le monde</button>
         <h3>Règles</h3>
@@ -344,7 +374,7 @@
           <label><span>🏙 Économie des villes</span><input id="cityEconomy" type="checkbox" checked></label>
           <label><span>🗳 Politique & élections</span><input id="politics" type="checkbox" checked></label>
           <label><span>🛡 Armées organisées</span><input id="armyAI" type="checkbox" checked></label>
-          <label><span>🗺 Territoires visibles</span><input id="showTerritories" type="checkbox" checked></label>
+          <label><span>🗺 Territoires / frontières</span><input id="showTerritories" type="checkbox" checked></label>
           <label><span>🛣 Routes visibles</span><input id="showRoads" type="checkbox" checked></label>
           <label><span>🚩 Armées visibles</span><input id="showArmies" type="checkbox" checked></label>
           <label><span>🎬 Réalisateur automatique</span><input id="autoDirector" type="checkbox" checked></label>

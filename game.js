@@ -92,6 +92,8 @@ function civStyleBonus(v,kind){
 let story={cinematic:null,cinematicQueue:[],bubbles:[],lastAutoDay:0,nextAutoDay:0,worldEvents:[],replayMode:false,replayTimer:null,eventCooldowns:{},lastCinematicReal:0,lastCinematicByKey:{},suppressedEvents:[],tickerTimer:null,lastCrisisDay:-1};
 let R={recording:true,snapshots:[],events:[],lastCaptureYear:0,liveState:null,playing:false};
 let followPersonId=null,lastAutosaveReal=0,minimapDirty=true;
+const TERR={canvas:document.createElement("canvas"),ctx:null,owners:null,dirty:true};
+TERR.ctx=TERR.canvas.getContext("2d");
 
 function simStamp(){const sn=["Printemps","Été","Automne","Hiver"][S.season]||"";return `Année ${S.year} · ${sn} · Jour ${S.day}`}
 function simDayIndex(){return (S.year-1)*360+S.season*90+(S.day-1)}
@@ -375,19 +377,77 @@ function clampCamera(){
  camera.x=clamp(camera.x,0,Math.max(0,W-vw));
  camera.y=clamp(camera.y,0,Math.max(0,H-vh));
 }
+
+function markTerritoryDirty(){TERR.dirty=true}
+function rebuildTerritories(){
+ if(!S?.civs?.length){TERR.dirty=false;return}
+ TERR.canvas.width=COLS;TERR.canvas.height=ROWS;
+ let img=TERR.ctx.createImageData(COLS,ROWS),px=img.data;
+ let owners=new Int16Array(COLS*ROWS);owners.fill(-1);
+ let cities=S.cities||[];
+ for(let gy=0;gy<ROWS;gy++)for(let gx=0;gx<COLS;gx++){
+   let idx=gy*COLS+gx,cell=S.grid[idx];if(!cell||cell.type==="water")continue;
+   let wx=(gx+.5)*CELL,wy=(gy+.5)*CELL,best=-1e9,second=-1e9,bestCi=-1;
+   for(const city of cities){
+     let dist=Math.hypot(wx-city.x,wy-city.y);
+     let spread=(city.radius||260)*1.08+(city.capital?55:0)+(city.prosperity||50)*2.1+(city.defense||8)*1.6+Math.sqrt(Math.max(1,city.population||1))*28-dist;
+     if(spread>best){second=best;best=spread;bestCi=city.ci}
+     else if(spread>second)second=spread;
+   }
+   if(bestCi<0||best<8)continue;
+   owners[idx]=bestCi;
+   let col=S.civs[bestCi]?.color||"#888",n=parseInt(col.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+   let diff=Math.max(0,best-Math.max(0,second)),alpha=clamp(22+diff*.35,22,72);
+   let o=idx*4;px[o]=r;px[o+1]=g;px[o+2]=b;px[o+3]=alpha;
+ }
+ // border pass
+ for(let gy=1;gy<ROWS-1;gy++)for(let gx=1;gx<COLS-1;gx++){
+   let idx=gy*COLS+gx,own=owners[idx];if(own<0)continue;
+   let right=owners[idx+1],down=owners[idx+COLS],left=owners[idx-1],up=owners[idx-COLS];
+   if(right!==own||down!==own||left!==own||up!==own){
+     let col=S.civs[own]?.color||"#888",n=parseInt(col.slice(1),16),r=Math.max(0,((n>>16)&255)-18),g=Math.max(0,(((n>>8)&255)-18)),b=Math.max(0,((n&255)-18));
+     let o=idx*4;px[o]=r;px[o+1]=g;px[o+2]=b;px[o+3]=140;
+   }
+ }
+ TERR.ctx.putImageData(img,0,0);TERR.owners=owners;TERR.dirty=false;
+}
+function generateDividerWalls(){
+ S.walls=[]; if((S.civs?.length||0)<2)return;
+ let bands=S.civs.length,bandW=W/bands;
+ for(let i=1;i<bands;i++){
+   let x=Math.round(i*bandW);
+   for(let y=40;y<H-40;y+=26){
+     // periodic gates so the walls do not completely lock the map
+     if((Math.floor(y/260)%3)===1 && Math.abs((y%260)-130)<42)continue;
+     let t=terrainAt(x,y).type;
+     if(t==="water")continue;
+     S.walls.push({x,y});
+   }
+ }
+}
+function seedStartingCivilizations(count,popEach=60){
+ for(let ci=0;ci<count;ci++)S.civs.push(civ(ci));
+ for(let ci=0;ci<count;ci++){
+   let [cx,cy]=landPoint(ci);
+   let baseName=count===1&&ci===0?"Asteria":(count===2?(ci===0?"Asteria":"Rocmar"):null);
+   let city=createCity(ci,cx,cy,baseName,true);
+   let bcount=count===1?11:9;
+   for(let h=0;h<bcount;h++)addBuilding(ci,h===0?"hall":"hut",cx+rnd(-160,160),cy+rnd(-160,160),h===0?"Centre de "+city.name:"Hutte",city.id);
+   for(let i=0;i<popEach;i++){let [px,py]=landPoint(ci);let p=makePerson(ci,px,py);p.cityId=city.id;S.people.push(p)}
+   assignHomes(ci);
+ }
+ markTerritoryDirty();
+}
+
 function reset(){
  let worldFactor=+$("worldScale")?.value||1;W=Math.round(7200*worldFactor);H=Math.round(4200*worldFactor);COLS=Math.ceil(W/CELL);ROWS=Math.ceil(H/CELL);$("mapSizeLabel").textContent=`${W}×${H}`;
  seed=Math.random()*99999;idSeq=1;
- S={run:true,tick:0,minute:480,day:1,year:1,season:0,elapsedMinutes:480,weather:"Clair",war:false,wars:[],walls:[],grid:[],rivers:[],res:[],buildings:[],people:[],cities:[],roads:[],armies:[],history:[],legends:[],crises:[],civs:[civ(0),civ(1)]};
+ let startCivs=clamp(+$("defaultCivCount")?.value||1,1,8);
+ S={run:true,tick:0,minute:480,day:1,year:1,season:0,elapsedMinutes:480,weather:"Clair",war:false,wars:[],walls:[],grid:[],rivers:[],res:[],buildings:[],people:[],cities:[],roads:[],armies:[],history:[],legends:[],crises:[],civs:[]};
  generateTerrain();minimapDirty=true;seedResources();
- for(let ci=0;ci<2;ci++){
-   let [cx,cy]=landPoint(ci),city=createCity(ci,cx,cy,ci===0?"Asteria":"Rocmar",true);
-   for(let h=0;h<9;h++)addBuilding(ci,h===0?"hall":"hut",cx+rnd(-160,160),cy+rnd(-160,160),h===0?"Centre de "+city.name:"Hutte",city.id);
-   for(let i=0;i<60;i++){let [px,py]=landPoint(ci);let p=makePerson(ci,px,py);p.cityId=city.id;S.people.push(p)}
-   assignHomes(ci);
- }
+ seedStartingCivilizations(startCivs,startCivs===1?90:60);
  rebuildRoads();ensureGovernments();updateCities(true);
- for(let y=0;y<H;y+=38)S.walls.push({x:W/2,y});
+ if(($("defaultWalls")?.value||"none")==="dividers")generateDividerWalls();
  active=0;selected=null;story.worldEvents=[];story.bubbles=[];story.cinematic=null;story.cinematicQueue=[];story.eventCooldowns={};story.lastCinematicReal=0;story.lastCinematicByKey={};story.suppressedEvents=[];story.lastCrisisDay=-1;followPersonId=null;story.lastAutoDay=simDayIndex();story.nextAutoDay=story.lastAutoDay+(+$("eventFrequency")?.value||1800);R={recording:$("recordReplay")?.checked!==false,snapshots:[],events:[],lastCaptureYear:0,liveState:null,playing:false};$("log").innerHTML="";
  for(const p of S.people){addPersonEvent(p,"Début de chronique",`${pname(p)} vit dans la civilisation ${S.civs[p.ci].name}.`,22,["origin"])}
  worldEvent({type:"world",title:"Naissance d’un nouveau monde",text:"Les premières communautés s’installent sur les continents.",score:88,x:W/2,y:H/2});
@@ -446,13 +506,13 @@ function cityPeople(city){return S.people.filter(p=>p.cityId===city.id)}
 function updateCitySpecialization(city){let bs=cityBuildings(city),count=t=>bs.filter(b=>b.type===t).length;let scores={Agricole:count("farm")*3,Industrielle:count("factory")*3+count("workshop"),Scientifique:count("lab")*4,Médicale:count("hospital")*4,Militaire:count("barracks")*4,Administrative:count("hall")*3};let best=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];city.specialization=best&&best[1]>0?best[0]:city.population>80?"Urbaine":"Village"}
 function aggregateCivStock(ci){let cities=S.cities.filter(c=>c.ci===ci),tot={food:0,wood:0,ore:0,oil:0,goods:0};for(const city of cities)for(const k in tot)tot[k]+=city.stock[k]||0;S.civs[ci].stock=tot;return tot}
 function updateCities(force=false){if(!$('cityEconomy')?.checked&&!force)return;if(!force&&S.tick%60!==0)return;for(const b of S.buildings)if(!b.cityId){let city=nearestCityXY(b.x,b.y,b.ci,950);if(city)b.cityId=city.id}for(const p of S.people)if(!p.cityId||findCity(p.cityId)?.ci!==p.ci){let h=findBuilding(p.home),city=h?.cityId?findCity(h.cityId):nearestCity(p);p.cityId=city?.id||null}
- for(const city of S.cities){let v=S.civs[city.ci],ps=cityPeople(city),bs=cityBuildings(city);city.population=ps.length;city.radius=clamp(230+Math.sqrt(ps.length)*28+Math.sqrt(bs.length)*18,230,620);let n=t=>bs.filter(b=>b.type===t).length;city.stock.food+=n("farm")*(1.45+v.intel/160)*crisisModifier(city.ci,"food");city.stock.goods+=n("workshop")*.36+n("factory")*.9;city.stock.ore+=n("factory")*.08;city.stock.oil+=n("power")*.025;let need=ps.length*.055*policyBonus(v,"growth");city.stock.food-=need;if(city.stock.food<0){let deficit=Math.abs(city.stock.food);city.stock.food=0;for(const p of ps)if(Math.random()<.08)p.hunger=Math.max(0,p.hunger-deficit/Math.max(1,ps.length)*12);city.unrest=clamp(city.unrest+.7,0,100)}else city.unrest=clamp(city.unrest-.08,0,100);let power=n("power")?1.18:1,industry=n("factory")+n("workshop");city.prosperity=clamp(45+Math.min(35,city.stock.goods*.08+industry*3)+v.coop*.12-city.unrest*.25,0,100);city.defense=clamp(8+n("barracks")*13+(city.capital?8:0)+v.disc*.15,0,100);v.treasury+=(city.prosperity*ps.length/9000+industry*.035)*policyBonus(v,"trade");updateCitySpecialization(city)}for(let ci=0;ci<S.civs.length;ci++){let cities=S.cities.filter(c=>c.ci===ci);S.civs[ci].cities=cities.length;let stock=aggregateCivStock(ci);S.civs[ci].foodSecurity=clamp(20+stock.food/Math.max(1,S.people.filter(p=>p.ci===ci).length)*18,0,100)}if(S.tick%600===0)rebuildRoads()}
-function maybeFoundCity(ci){let v=S.civs[ci],cities=S.cities.filter(c=>c.ci===ci),pop=S.people.filter(p=>p.ci===ci).length;if(pop<cities.length*95+75||v.treasury<55||cities.length>=10)return;if(Math.random()>.045)return;let best=null;for(let tries=0;tries<30;tries++){let [x,y]=landPoint(ci);let near=nearestCityXY(x,y,ci);let dist=near?Math.hypot(x-near.x,y-near.y):1e9;if(dist>850){best=[x,y];break}}if(!best)return;let city=createCity(ci,best[0],best[1],null,false);addBuilding(ci,eraIndex(v)>=2?"hall":"hut",city.x,city.y,"Centre de "+city.name,city.id);for(let h=0;h<3;h++)addBuilding(ci,"hut",city.x+rnd(-100,100),city.y+rnd(-100,100),null,city.id);v.treasury-=50;rebuildRoads();worldEvent({type:"city",title:`Fondation de ${city.name}`,text:`${v.name} fonde une nouvelle ville afin d'étendre son territoire.`,score:79,ci,x:city.x,y:city.y,personId:leaderForCiv(ci)?.id})}
+ for(const city of S.cities){let v=S.civs[city.ci],ps=cityPeople(city),bs=cityBuildings(city);city.population=ps.length;city.radius=clamp(230+Math.sqrt(ps.length)*28+Math.sqrt(bs.length)*18,230,620);let n=t=>bs.filter(b=>b.type===t).length;city.stock.food+=n("farm")*(1.45+v.intel/160)*crisisModifier(city.ci,"food");city.stock.goods+=n("workshop")*.36+n("factory")*.9;city.stock.ore+=n("factory")*.08;city.stock.oil+=n("power")*.025;let need=ps.length*.055*policyBonus(v,"growth");city.stock.food-=need;if(city.stock.food<0){let deficit=Math.abs(city.stock.food);city.stock.food=0;for(const p of ps)if(Math.random()<.08)p.hunger=Math.max(0,p.hunger-deficit/Math.max(1,ps.length)*12);city.unrest=clamp(city.unrest+.7,0,100)}else city.unrest=clamp(city.unrest-.08,0,100);let power=n("power")?1.18:1,industry=n("factory")+n("workshop");city.prosperity=clamp(45+Math.min(35,city.stock.goods*.08+industry*3)+v.coop*.12-city.unrest*.25,0,100);city.defense=clamp(8+n("barracks")*13+(city.capital?8:0)+v.disc*.15,0,100);v.treasury+=(city.prosperity*ps.length/9000+industry*.035)*policyBonus(v,"trade");updateCitySpecialization(city)}for(let ci=0;ci<S.civs.length;ci++){let cities=S.cities.filter(c=>c.ci===ci);S.civs[ci].cities=cities.length;let stock=aggregateCivStock(ci);S.civs[ci].foodSecurity=clamp(20+stock.food/Math.max(1,S.people.filter(p=>p.ci===ci).length)*18,0,100)}markTerritoryDirty();if(S.tick%600===0)rebuildRoads()}
+function maybeFoundCity(ci){let v=S.civs[ci],cities=S.cities.filter(c=>c.ci===ci),pop=S.people.filter(p=>p.ci===ci).length;if(pop<cities.length*95+75||v.treasury<55||cities.length>=10)return;if(Math.random()>.045)return;let best=null;for(let tries=0;tries<30;tries++){let [x,y]=landPoint(ci);let near=nearestCityXY(x,y,ci);let dist=near?Math.hypot(x-near.x,y-near.y):1e9;if(dist>850){best=[x,y];break}}if(!best)return;let city=createCity(ci,best[0],best[1],null,false);addBuilding(ci,eraIndex(v)>=2?"hall":"hut",city.x,city.y,"Centre de "+city.name,city.id);for(let h=0;h<3;h++)addBuilding(ci,"hut",city.x+rnd(-100,100),city.y+rnd(-100,100),null,city.id);v.treasury-=50;markTerritoryDirty();rebuildRoads();worldEvent({type:"city",title:`Fondation de ${city.name}`,text:`${v.name} fonde une nouvelle ville afin d'étendre son territoire.`,score:79,ci,x:city.x,y:city.y,personId:leaderForCiv(ci)?.id})}
 function rebuildRoads(){S.roads=[];for(const city of S.cities){let bs=cityBuildings(city).sort((a,b)=>Math.hypot(a.x-city.x,a.y-city.y)-Math.hypot(b.x-city.x,b.y-city.y)).slice(0,28);for(const b of bs)S.roads.push({ci:city.ci,cityId:city.id,x1:city.x,y1:city.y,x2:b.x,y2:b.y,kind:"local"});let others=S.cities.filter(q=>q.ci===city.ci&&q.id!==city.id).sort((a,b)=>Math.hypot(a.x-city.x,a.y-city.y)-Math.hypot(b.x-city.x,b.y-city.y)).slice(0,2);for(const q of others)if(city.id<q.id)S.roads.push({ci:city.ci,cityId:city.id,x1:city.x,y1:city.y,x2:q.x,y2:q.y,kind:"regional"})}}
 function enemyCityFor(ci){let enemies=S.cities.filter(c=>areAtWar(ci,c.ci));if(!enemies.length)return null;let home=S.cities.find(c=>c.ci===ci&&c.capital)||S.cities.find(c=>c.ci===ci);return enemies.sort((a,b)=>(home?Math.hypot(a.x-home.x,a.y-home.y):0)-(home?Math.hypot(b.x-home.x,b.y-home.y):0))[0]}
 function updateArmies(){if(!$('armyAI')?.checked||S.tick%120!==0)return;let newArmies=[];for(let ci=0;ci<S.civs.length;ci++){let troops=S.people.filter(p=>p.ci===ci&&/Guerrier|Soldat|Chevalier|Pilote/.test(p.role));let target=enemyCityFor(ci),groups=Math.min(3,Math.max(1,Math.ceil(troops.length/45)));for(let g=0;g<groups&&troops.length;g++){let members=troops.filter((p,i)=>i%groups===g);if(!members.length)continue;let commander=[...members].sort((a,b)=>(b.courage+b.charisma+b.influence)-(a.courage+a.charisma+a.influence))[0];let old=S.armies.find(a=>a.ci===ci&&a.slot===g);let army={id:old?.id||idSeq++,slot:g,ci,memberIds:members.map(p=>p.id),commanderId:commander.id,mission:target?"Attaque":"Défense",targetCityId:target?.id||null,morale:clamp(members.reduce((a,p)=>a+p.courage+p.mood,0)/(members.length*2)-(S.civs[ci].warWeariness||0)*.25,5,100)};newArmies.push(army);for(const p of members)p.armyId=army.id}}S.armies=newArmies;processCityOccupation()}
 function armyForPerson(p){return p.armyId?S.armies.find(a=>a.id===p.armyId):null}
-function processCityOccupation(){if(SP.last<0||S.tick-SP.last>=12)rebuildSpatial();for(const city of S.cities){let attackers=new Map(),defenders=0;for(const p of spatialCandidates(SP.people,city.x,city.y,city.radius)){if(!/Guerrier|Soldat|Chevalier|Pilote/.test(p.role))continue;let d=(p.x-city.x)**2+(p.y-city.y)**2;if(d>city.radius*city.radius)continue;if(p.ci===city.ci)defenders++;else if(areAtWar(p.ci,city.ci))attackers.set(p.ci,(attackers.get(p.ci)||0)+1)}let best=[...attackers.entries()].sort((a,b)=>b[1]-a[1])[0];if(best&&best[1]>Math.max(2,defenders*1.35)){if(city.occupation.ci!==best[0])city.occupation={ci:best[0],progress:0};city.occupation.progress+=.16*(best[1]/Math.max(1,defenders+best[1]));if(city.occupation.progress>=1){let old=city.ci,next=best[0];city.ci=next;city.occupation={ci:null,progress:0};for(const b of cityBuildings(city))b.ci=next;let v=S.civs[next];worldEvent({type:"city",title:`Prise de ${city.name}`,text:`${v.name} capture ${city.name} après des combats autour de la ville.`,score:94,ci:next,x:city.x,y:city.y,personId:leaderForCiv(next)?.id});rebuildRoads()}}else city.occupation.progress=Math.max(0,(city.occupation.progress||0)-.04)}}
+function processCityOccupation(){if(SP.last<0||S.tick-SP.last>=12)rebuildSpatial();for(const city of S.cities){let attackers=new Map(),defenders=0;for(const p of spatialCandidates(SP.people,city.x,city.y,city.radius)){if(!/Guerrier|Soldat|Chevalier|Pilote/.test(p.role))continue;let d=(p.x-city.x)**2+(p.y-city.y)**2;if(d>city.radius*city.radius)continue;if(p.ci===city.ci)defenders++;else if(areAtWar(p.ci,city.ci))attackers.set(p.ci,(attackers.get(p.ci)||0)+1)}let best=[...attackers.entries()].sort((a,b)=>b[1]-a[1])[0];if(best&&best[1]>Math.max(2,defenders*1.35)){if(city.occupation.ci!==best[0])city.occupation={ci:best[0],progress:0};city.occupation.progress+=.16*(best[1]/Math.max(1,defenders+best[1]));if(city.occupation.progress>=1){let old=city.ci,next=best[0];city.ci=next;city.occupation={ci:null,progress:0};for(const b of cityBuildings(city))b.ci=next;markTerritoryDirty();let v=S.civs[next];worldEvent({type:"city",title:`Prise de ${city.name}`,text:`${v.name} capture ${city.name} après des combats autour de la ville.`,score:94,ci:next,x:city.x,y:city.y,personId:leaderForCiv(next)?.id});rebuildRoads()}}else city.occupation.progress=Math.max(0,(city.occupation.progress||0)-.04)}}
 
 function collectNearbyResource(p){if(SP.last<0||S.tick-SP.last>=12)rebuildSpatial();let best=null,bestD=170;for(const r of spatialCandidates(SP.res,p.x,p.y,22)){let z=(r.x-p.x)**2+(r.y-p.y)**2;if(z<bestD){bestD=z;best=r}}if(!best)return false;let i=S.res.indexOf(best);if(i<0)return false;let city=cityForPerson(p),v=S.civs[p.ci];if(best.type==="food")p.hunger=Math.min(100,p.hunger+30);if(city){if(best.type==="food")city.stock.food+=5;else if(best.type==="wood")city.stock.wood+=4;else if(best.type==="ore")city.stock.ore+=3;else if(best.type==="oil")city.stock.oil+=2}p.coins=(p.coins||0)+((best.type==="ore"||best.type==="oil")?2:1);v.wealth+=((best.type==="ore"||best.type==="oil")?1:.2)*civStyleBonus(v,"wealth");S.res.splice(i,1);return true}
 function detailStride(){if(story.cinematic)return 1;let mode=$("performanceMode")?.value||"auto",s=speedValue(),pop=S?.people?.length||0;if(mode==="exact")return 1;if(mode==="performance"){if(s>=100)return pop>2500?20:pop>1000?15:10;if(s>=50)return pop>2500?12:pop>1000?8:5;if(s>=25)return pop>1800?8:4;return s>=10?2:1}if(s>=100)return pop>2500?15:pop>1000?10:5;if(s>=50)return pop>2500?10:pop>1000?6:4;if(s>=25)return pop>2000?5:2;return 1}
@@ -664,7 +724,7 @@ function tick(){
 /* -------- Camera / rendering -------- */
 function applyCamera(){ctx.setTransform(camera.zoom,0,0,camera.zoom,-camera.x*camera.zoom,-camera.y*camera.zoom)}
 function visibleBounds(){return {l:camera.x,t:camera.y,r:camera.x+c.width/camera.zoom,b:camera.y+c.height/camera.zoom}}
-const biomeColors={water:"#347b99",sand:"#c8b57d",plains:"#6d965b",forest:"#426f48",mountain:"#7d817c",desert:"#b89a59",snow:"#e4ecee"};
+const biomeColors={water:"#2f7899",sand:"#ccb57b",plains:"#6f995a",forest:"#3e6f49",mountain:"#7e8078",desert:"#bc9c5c",snow:"#e6eef1"};
 function tint(hex,delta){
  let n=parseInt(hex.slice(1),16),r=clamp((n>>16)+delta,0,255),g=clamp(((n>>8)&255)+delta,0,255),b=clamp((n&255)+delta,0,255);
  return `rgb(${r},${g},${b})`;
@@ -696,98 +756,146 @@ function drawTerrain(){
  }
 }
 
-function drawTerritories(){if(!$('showTerritories')?.checked)return;let vb=visibleBounds();ctx.save();for(const city of S.cities){if(city.x+city.radius<vb.l||city.x-city.radius>vb.r||city.y+city.radius<vb.t||city.y-city.radius>vb.b)continue;let color=S.civs[city.ci]?.color||"#999";ctx.globalAlpha=.09;ctx.fillStyle=color;ctx.beginPath();ctx.arc(city.x,city.y,city.radius,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.36;ctx.strokeStyle=color;ctx.lineWidth=2/camera.zoom;ctx.setLineDash([10/camera.zoom,8/camera.zoom]);ctx.stroke();ctx.setLineDash([])}ctx.restore()}
-function drawRoads(){if(!$('showRoads')?.checked)return;let vb=visibleBounds();ctx.save();ctx.lineCap="round";for(const r of S.roads){if(Math.max(r.x1,r.x2)<vb.l||Math.min(r.x1,r.x2)>vb.r||Math.max(r.y1,r.y2)<vb.t||Math.min(r.y1,r.y2)>vb.b)continue;ctx.strokeStyle=r.kind==="regional"?"rgba(91,72,51,.48)":"rgba(104,84,61,.34)";ctx.lineWidth=r.kind==="regional"?7:4;ctx.beginPath();ctx.moveTo(r.x1,r.y1);ctx.lineTo(r.x2,r.y2);ctx.stroke();ctx.strokeStyle="rgba(202,181,142,.18)";ctx.lineWidth=1.2;ctx.stroke()}ctx.restore()}
+function drawTerritories(){
+ if(!$('showTerritories')?.checked)return;
+ if(TERR.dirty||TERR.canvas.width!==COLS||TERR.canvas.height!==ROWS)rebuildTerritories();
+ ctx.save();
+ ctx.imageSmoothingEnabled=false;
+ ctx.globalAlpha=.92;
+ ctx.drawImage(TERR.canvas,0,0,W,H);
+ // Capital and city influence rings for readability
+ let vb=visibleBounds();
+ for(const city of S.cities){
+   if(city.x+city.radius<vb.l||city.x-city.radius>vb.r||city.y+city.radius<vb.t||city.y-city.radius>vb.b)continue;
+   let color=S.civs[city.ci]?.color||"#999";
+   ctx.globalAlpha=city.capital?.42:.22;
+   ctx.strokeStyle=color;
+   ctx.lineWidth=(city.capital?2.6:1.2)/camera.zoom;
+   ctx.setLineDash(city.capital?[12/camera.zoom,7/camera.zoom]:[]);
+   ctx.beginPath();ctx.arc(city.x,city.y,city.radius*(city.capital?1.0:.72),0,Math.PI*2);ctx.stroke();
+ }
+ ctx.setLineDash([]);
+ ctx.restore();
+}
+function drawRoads(){if(!$('showRoads')?.checked)return;let vb=visibleBounds();ctx.save();ctx.lineCap="round";for(const r of S.roads){if(Math.max(r.x1,r.x2)<vb.l||Math.min(r.x1,r.x2)>vb.r||Math.max(r.y1,r.y2)<vb.t||Math.min(r.y1,r.y2)>vb.b)continue;ctx.strokeStyle=r.kind==="regional"?"rgba(83,63,41,.58)":"rgba(102,83,59,.38)";ctx.lineWidth=r.kind==="regional"?7.5:4.2;ctx.beginPath();ctx.moveTo(r.x1,r.y1);ctx.lineTo(r.x2,r.y2);ctx.stroke();ctx.strokeStyle="rgba(219,197,156,.22)";ctx.lineWidth=r.kind==="regional"?1.8:1.2;ctx.stroke()}ctx.restore()}
 function drawCityLabels(){let vb=visibleBounds();ctx.save();for(const city of S.cities){if(city.x<vb.l-100||city.x>vb.r+100||city.y<vb.t-100||city.y>vb.b+100)continue;let v=S.civs[city.ci];ctx.font=`${Math.max(12,16/camera.zoom)}px system-ui`;ctx.textAlign="center";ctx.fillStyle="rgba(8,14,17,.72)";let label=`${city.capital?"★ ":""}${city.name} · ${city.population}`;let w=ctx.measureText(label).width+16;ctx.fillRect(city.x-w/2,city.y-city.radius*.18-33,w,23);ctx.fillStyle="#eef5f7";ctx.fillText(label,city.x,city.y-city.radius*.18-16);if(city.occupation?.progress>0){ctx.fillStyle="#e2a84a";ctx.fillRect(city.x-34,city.y-city.radius*.18-9,68*city.occupation.progress,3)}}ctx.restore()}
 function drawArmies(){if(!$('showArmies')?.checked)return;ctx.save();for(const a of S.armies){let members=a.memberIds.map(findPerson).filter(Boolean);if(!members.length)continue;let x=members.reduce((s,p)=>s+p.x,0)/members.length,y=members.reduce((s,p)=>s+p.y,0)/members.length,v=S.civs[a.ci];ctx.fillStyle="rgba(9,15,18,.82)";ctx.fillRect(x-23,y-49,46,23);ctx.fillStyle=v.color;ctx.fillRect(x-23,y-49,5,23);ctx.fillStyle="#eef5f7";ctx.font="11px system-ui";ctx.textAlign="center";ctx.fillText(`🚩 ${members.length}`,x+3,y-34);ctx.strokeStyle=v.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-26);ctx.lineTo(x,y-8);ctx.stroke()}ctx.restore()}
 
 function drawBuilding(b){
  let a=b.x,q=b.y,v=S.civs[b.ci],e=buildings.find(z=>z.type===b.type)?.era||0;
  let globalScale=(+$("buildingVisualScale").value||125)/100,sc=globalScale*(b.scale||1);
- let roof=b.roof||["#6e4d35","#8c6545","#6b5c4c","#765340","#68717a","#536578"][e]||"#6e4d35";
- let wall=v?.color||"#aaa",detail=(+$("textureDetail").value||80)/100;
+ let detail=(+$("textureDetail").value||80)/100;
+ let wallBase=["#8b6d4d","#94785b","#8b7a67","#7d7d80","#9aa0a6","#7a8c97"][e]||"#8b6d4d";
+ let wall=v?.color?(()=>{let n=parseInt(v.color.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgb(${Math.round((r+180)/2)},${Math.round((g+175)/2)},${Math.round((b+170)/2)})`})():wallBase;
+ let roof=b.roof||["#734d33","#8b5f43","#685043","#6a4d42","#5c6875","#455969"][e]||"#734d33";
  ctx.save();ctx.translate(a,q);ctx.scale(sc,sc);
+ ctx.fillStyle="rgba(0,0,0,.22)";ctx.beginPath();ctx.ellipse(0,13,20,7.6,0,0,Math.PI*2);ctx.fill();
 
- // soft ground shadow
- ctx.fillStyle="rgba(0,0,0,.22)";ctx.beginPath();ctx.ellipse(0,12,19,7,0,0,Math.PI*2);ctx.fill();
+ // footprint varies by type
+ let w=["airport","factory","power","strategic"].includes(b.type)?34:28;
+ let h=["hospital","hall","lab","strategic"].includes(b.type)?19:17;
+ ctx.fillStyle="#5d574e";ctx.fillRect(-w/2,8,w,4);
+ ctx.fillStyle=wall;ctx.beginPath();ctx.roundRect(-w/2+1,-h/2,w-2,h,3);ctx.fill();
 
- // foundation
- ctx.fillStyle="#5f5a51";ctx.fillRect(-15,8,30,4);
-
- // walls with subtle gradient-like bands
- ctx.fillStyle=wall;ctx.beginPath();ctx.roundRect(-14,-6,28,17,2);ctx.fill();
- ctx.fillStyle="rgba(255,255,255,.08)";ctx.fillRect(-12,-4,24,3);
- ctx.fillStyle="rgba(0,0,0,.08)";ctx.fillRect(-12,5,24,4);
+ // wall shading and texture
+ let grad=ctx.createLinearGradient(-w/2,0,w/2,0);
+ grad.addColorStop(0,"rgba(255,255,255,.10)");grad.addColorStop(.45,"rgba(255,255,255,.02)");grad.addColorStop(1,"rgba(0,0,0,.10)");
+ ctx.fillStyle=grad;ctx.beginPath();ctx.roundRect(-w/2+1,-h/2,w-2,h,3);ctx.fill();
+ if(detail>.45){
+   ctx.strokeStyle="rgba(65,53,41,.22)";ctx.lineWidth=.8;
+   for(let yy=-h/2+4;yy<h/2-1;yy+=4){ctx.beginPath();ctx.moveTo(-w/2+3,yy);ctx.lineTo(w/2-3,yy);ctx.stroke()}
+ }
 
  // roof
- ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(-18,-6);ctx.lineTo(0,-23);ctx.lineTo(18,-6);ctx.closePath();ctx.fill();
- ctx.strokeStyle="rgba(30,25,20,.32)";ctx.lineWidth=1.2;ctx.stroke();
+ ctx.fillStyle=roof;ctx.beginPath();ctx.moveTo(-w/2-3,-h/2+1);ctx.lineTo(0,-h/2-15);ctx.lineTo(w/2+3,-h/2+1);ctx.closePath();ctx.fill();
+ ctx.strokeStyle="rgba(35,25,18,.35)";ctx.lineWidth=1.1;ctx.stroke();
+ if(detail>.55){ctx.strokeStyle="rgba(255,255,255,.12)";ctx.beginPath();ctx.moveTo(-w/4,-h/2-6);ctx.lineTo(w/4,-h/2-6);ctx.stroke()}
 
- // door + windows
- ctx.fillStyle="#5a4030";ctx.fillRect(-3,2,6,9);
- ctx.fillStyle="#a9d5e3";ctx.fillRect(-10,-1,5,5);ctx.fillRect(5,-1,5,5);
- ctx.fillStyle="rgba(255,255,255,.38)";ctx.fillRect(-9,0,1,3);ctx.fillRect(6,0,1,3);
+ // openings
+ ctx.fillStyle="#5a4030";ctx.fillRect(-4,1,8,10);
+ ctx.fillStyle="#b7dde8";
+ ctx.fillRect(-w/2+6,-2,5,5);ctx.fillRect(w/2-11,-2,5,5);
+ ctx.fillStyle="rgba(255,255,255,.35)";
+ ctx.fillRect(-w/2+7,-1,1,3);ctx.fillRect(w/2-10,-1,1,3);
 
- if(detail>.45){
-   ctx.strokeStyle="rgba(70,55,40,.26)";ctx.lineWidth=.9;
-   for(let yy=-2;yy<8;yy+=4){ctx.beginPath();ctx.moveTo(-13,yy);ctx.lineTo(13,yy);ctx.stroke()}
- }
- if(["factory","power"].includes(b.type)){
-   ctx.fillStyle="#465159";ctx.fillRect(9,-28,6,22);
-   ctx.fillStyle="#2e383e";ctx.fillRect(8,-29,8,3);
-   ctx.fillStyle="rgba(210,220,225,.32)";ctx.beginPath();ctx.arc(13,-34,7,0,Math.PI*2);ctx.fill();
+ if(b.type==="hall"){
+   ctx.fillStyle="#d9c08b";ctx.fillRect(-2,-18,4,11);
+   ctx.fillStyle=v.color;ctx.beginPath();ctx.moveTo(2,-18);ctx.lineTo(10,-15);ctx.lineTo(2,-12);ctx.closePath();ctx.fill();
  }
  if(b.type==="hospital"){
-   ctx.fillStyle="#f1f4f5";ctx.fillRect(-2,-2,4,11);ctx.fillRect(-7,2,14,4);
+   ctx.fillStyle="#f5f6f7";ctx.fillRect(-2,-4,4,12);ctx.fillRect(-8,0,16,4);
  }
- if(b.type==="airport"){
-   ctx.fillStyle="#bcc8cd";ctx.fillRect(-23,13,46,5);
-   ctx.fillStyle="#48545a";ctx.fillRect(-2,13,4,5);
+ if(b.type==="farm"){
+   ctx.fillStyle="#7a9147";for(let i=-10;i<=10;i+=5){ctx.fillRect(i,10,2,4)}
+ }
+ if(b.type==="factory"||b.type==="power"){
+   ctx.fillStyle="#57626a";ctx.fillRect(w/2-8,-27,8,24);
+   ctx.fillStyle="#313a40";ctx.fillRect(w/2-9,-29,10,3);
+   ctx.fillStyle="rgba(214,220,224,.26)";ctx.beginPath();ctx.arc(w/2-4,-34,7,0,Math.PI*2);ctx.fill();
  }
  if(b.type==="lab"){
-   ctx.fillStyle="#b7d5e1";ctx.beginPath();ctx.arc(0,-13,7,Math.PI,0);ctx.fill();
+   ctx.fillStyle="#c7e4ef";ctx.beginPath();ctx.arc(0,-11,7,Math.PI,0);ctx.fill();ctx.fillStyle="#9dc6d6";ctx.fillRect(-5,-10,10,6);
+ }
+ if(b.type==="airport"){
+   ctx.fillStyle="#bcc8cd";ctx.fillRect(-23,13,46,5);ctx.fillStyle="#48545a";ctx.fillRect(-2,13,4,5);
+   ctx.fillStyle="#8da5b1";ctx.fillRect(-16,-4,32,3);
  }
  if(b.type==="strategic"){
-   ctx.fillStyle="#38434a";ctx.fillRect(-8,-29,16,16);
-   ctx.strokeStyle="#bcc7cc";ctx.beginPath();ctx.arc(0,-22,5,0,Math.PI*2);ctx.stroke();
+   ctx.fillStyle="#39444a";ctx.fillRect(-10,-28,20,16);
+   ctx.strokeStyle="#cad4d7";ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(0,-20,5,0,Math.PI*2);ctx.stroke();
  }
  ctx.restore();
 }
 function drawPerson(p){
- let a=p.x,b=p.y,v=S.civs[p.ci],globalScale=(+$("npcVisualScale").value||120)/100,sc=globalScale*(p.scale||1);
+ let a=p.x,b=p.y,v=S.civs[p.ci],globalScale=(+$("npcVisualScale").value||120)/100;
+ let ageScale=p.age<7?.76:p.age<15?.9:p.age>68?.95:1, sc=globalScale*(p.scale||1)*ageScale;
+ let cloth=p.clothes||v.color, detail=(+$("textureDetail").value||80)/100;
  ctx.save();ctx.translate(a,b);ctx.scale(sc,sc);
 
  // shadow
- ctx.fillStyle="rgba(0,0,0,.20)";ctx.beginPath();ctx.ellipse(0,10,6,2.7,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="rgba(0,0,0,.20)";ctx.beginPath();ctx.ellipse(0,10.5,6.4,2.9,0,0,Math.PI*2);ctx.fill();
 
  // legs
- ctx.strokeStyle="#273036";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-2,6);ctx.lineTo(-2,12);ctx.moveTo(2,6);ctx.lineTo(2,12);ctx.stroke();
+ ctx.strokeStyle="#263038";ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(-2,6);ctx.lineTo(-2,13);ctx.moveTo(2,6);ctx.lineTo(2,13);ctx.stroke();
 
- // torso / clothes
- ctx.fillStyle=p.clothes||v.color;ctx.beginPath();ctx.roundRect(-5,-3,10,11,2.5);ctx.fill();
- ctx.fillStyle="rgba(255,255,255,.10)";ctx.fillRect(-4,-2,8,2);
+ // torso silhouette varies slightly
+ ctx.fillStyle=cloth;ctx.beginPath();
+ if(p.sex==="F"){ctx.moveTo(-4.6,-2.5);ctx.lineTo(4.6,-2.5);ctx.lineTo(6,8);ctx.lineTo(-6,8);ctx.closePath();ctx.fill()}
+ else {ctx.roundRect(-5,-3,10,11,2.5);ctx.fill()}
+ let clothGrad=ctx.createLinearGradient(-6,-2,6,8);clothGrad.addColorStop(0,"rgba(255,255,255,.14)");clothGrad.addColorStop(1,"rgba(0,0,0,.10)");
+ ctx.fillStyle=clothGrad;ctx.fillRect(-5,-2,10,10);
+ if(detail>.55){ctx.fillStyle="rgba(255,255,255,.08)";ctx.fillRect(-4,-2,8,2)}
 
  // arms
  ctx.strokeStyle=p.skin||"#c8946e";ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(-8,5);ctx.moveTo(5,0);ctx.lineTo(8,5);ctx.stroke();
 
  // head
- ctx.fillStyle=p.skin||"#c8946e";ctx.beginPath();ctx.arc(0,-9,5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=p.skin||"#c8946e";ctx.beginPath();ctx.arc(0,-9,5.2,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="rgba(255,255,255,.10)";ctx.beginPath();ctx.arc(-1.2,-10.2,1.7,0,Math.PI*2);ctx.fill();
 
  // hair
  ctx.fillStyle=p.hair||"#241912";
  if(p.hairStyle==="bald"){}
- else if(p.hairStyle==="long"){ctx.beginPath();ctx.arc(0,-10,5.3,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(-5,-10,2,8);ctx.fillRect(3,-10,2,8)}
- else if(p.hairStyle==="curly"){for(let i=-1;i<=1;i++){ctx.beginPath();ctx.arc(i*3,-13+(Math.abs(i)),2.5,0,Math.PI*2);ctx.fill()}}
+ else if(p.hairStyle==="long"){ctx.beginPath();ctx.arc(0,-10,5.6,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(-5,-10,2,8);ctx.fillRect(3,-10,2,8)}
+ else if(p.hairStyle==="curly"){for(let i=-1;i<=1;i++){ctx.beginPath();ctx.arc(i*3,-13+(Math.abs(i)*.8),2.5,0,Math.PI*2);ctx.fill()}}
  else if(p.hairStyle==="mohawk"){ctx.fillRect(-1,-17,2,7)}
- else {ctx.beginPath();ctx.arc(0,-11,5,Math.PI,Math.PI*2);ctx.fill()}
+ else {ctx.beginPath();ctx.arc(0,-11.2,5.2,Math.PI,Math.PI*2);ctx.fill()}
 
- // eyes
- ctx.fillStyle="#1b2023";ctx.fillRect(-2.5,-9,1,1);ctx.fillRect(1.5,-9,1,1);
+ // face
+ ctx.fillStyle="#1b2023";ctx.fillRect(-2.6,-9.3,1,1);ctx.fillRect(1.6,-9.3,1,1);
+ if(detail>.45){ctx.fillRect(-.4,-7.7,.8,.8)}
 
- // role signs
- if(/Chef|Maire|Président/.test(p.role)){ctx.fillStyle="#f1c84c";ctx.beginPath();ctx.moveTo(-6,-14);ctx.lineTo(-3,-18);ctx.lineTo(0,-15);ctx.lineTo(3,-18);ctx.lineTo(6,-14);ctx.closePath();ctx.fill()}
- if(/Médecin|Guérisseur/.test(p.role)){ctx.strokeStyle="#f2f6f7";ctx.lineWidth=1.5;ctx.strokeRect(7,-2,4,7)}
+ // role accessories
+ if(/Chef|Maire|Président|Roi/.test(p.role)){
+   ctx.fillStyle="#f1c84c";ctx.beginPath();ctx.moveTo(-6,-14);ctx.lineTo(-3,-18);ctx.lineTo(0,-15.2);ctx.lineTo(3,-18);ctx.lineTo(6,-14);ctx.closePath();ctx.fill();
+ }
+ if(/Médecin|Guérisseur/.test(p.role)){
+   ctx.fillStyle="#f2f6f7";ctx.fillRect(7,-2,4,7);ctx.fillStyle="#d64e4e";ctx.fillRect(8.5,0.4,1,4);ctx.fillRect(7,2,4,1);
+ }
  if(/Guerrier|Soldat|Chevalier/.test(p.role)){ctx.strokeStyle="#d6dde0";ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(9,-5);ctx.lineTo(9,10);ctx.stroke()}
+ if(/Scientifique|Ingénieur/.test(p.role)){ctx.fillStyle="#c1dbe6";ctx.fillRect(-2,-1,4,2)}
+ if(p.age<12){ctx.fillStyle="rgba(255,255,255,.22)";ctx.beginPath();ctx.arc(0,-18,1.6,0,Math.PI*2);ctx.fill()}
  if(p.partner){ctx.fillStyle="#ea7fa5";ctx.beginPath();ctx.arc(0,-20,2,0,Math.PI*2);ctx.fill()}
  ctx.restore();
 }
@@ -801,9 +909,18 @@ function draw(){
  let vb=visibleBounds();
  const visible=o=>o.x>vb.l-80&&o.x<vb.r+80&&o.y>vb.t-80&&o.y<vb.b+80;
  let farMode=$("farNpcDetail")?.value||"auto",pStep=1,rStep=1;if(farMode==="low"){pStep=camera.zoom<.7?3:1;rStep=camera.zoom<.7?3:1}else if(farMode==="auto"){if(camera.zoom<.34&&S.people.length>700)pStep=S.people.length>1800?4:2;if(camera.zoom<.3&&S.res.length>1000)rStep=3}
- for(let i=0;i<S.res.length;i+=rStep){let r=S.res[i];if(visible(r)){ctx.fillStyle=r.type==="food"?"#d6b44a":r.type==="wood"?"#755232":r.type==="oil"?"#25292c":"#a8b1b5";ctx.beginPath();ctx.arc(r.x,r.y,r.type==="wood"?4.5:3.5,0,Math.PI*2);ctx.fill()}}
+ for(let i=0;i<S.res.length;i+=rStep){let r=S.res[i];if(visible(r)){
+   if(r.type==="wood"){ctx.fillStyle="#755232";ctx.fillRect(r.x-4,r.y-2,8,4);ctx.fillStyle="#8a6540";ctx.fillRect(r.x-2,r.y-3,4,6)}
+   else if(r.type==="food"){ctx.fillStyle="#d6b44a";ctx.beginPath();ctx.arc(r.x,r.y,3.8,0,Math.PI*2);ctx.fill();ctx.fillStyle="#7aa050";ctx.fillRect(r.x-1,r.y-5,2,2)}
+   else if(r.type==="oil"){ctx.fillStyle="#25292c";ctx.beginPath();ctx.arc(r.x,r.y,3.8,0,Math.PI*2);ctx.fill();ctx.fillStyle="rgba(255,255,255,.14)";ctx.fillRect(r.x-1,r.y-2,1,1)}
+   else {ctx.fillStyle="#a8b1b5";ctx.beginPath();ctx.arc(r.x,r.y,3.5,0,Math.PI*2);ctx.fill()}
+ }}
  for(const b of S.buildings)if(visible(b))drawBuilding(b);
- for(const w of S.walls)if(visible(w)){ctx.fillStyle="#817a70";ctx.fillRect(w.x-4,w.y,8,22);ctx.fillStyle="#9a9387";ctx.fillRect(w.x-5,w.y,10,4)}
+ for(const w of S.walls)if(visible(w)){
+   ctx.fillStyle="#766f66";ctx.fillRect(w.x-4,w.y,8,21);
+   ctx.fillStyle="#9a9389";ctx.fillRect(w.x-5,w.y,10,4);
+   ctx.fillStyle="#67615a";ctx.fillRect(w.x-2,w.y+6,4,2);
+ }
  for(let i=0;i<S.people.length;i+=pStep){let p=S.people[i];if(visible(p))drawPerson(p)}
  if(selected?.type==="person"&&visible(selected.obj)&&pStep>1)drawPerson(selected.obj);
  drawArmies();drawCityLabels();drawWeather();drawSpeechBubbles();drawMinimap();
@@ -888,19 +1005,26 @@ function setPopulation(ci,target){
  return target>current?addPopulation(ci,target-current):removePopulation(ci,current-target);
 }
 function configureCivilizationCount(target){
- target=clamp(Math.floor(target),2,8);
+ target=clamp(Math.floor(target),1,8);
  while(S.civs.length<target){let i=S.civs.length;S.civs.push(civ(i));let [cx,cy]=landPoint(i),city=createCity(i,cx,cy,null,true);for(let h=0;h<7;h++)addBuilding(i,h===0?"hall":"hut",cx+rnd(-140,140),cy+rnd(-140,140),null,city.id)}
- while(S.civs.length>target){let i=S.civs.length-1;S.people=S.people.filter(p=>p.ci!==i);S.buildings=S.buildings.filter(b=>b.ci!==i);S.cities=S.cities.filter(c=>c.ci!==i);S.civs.pop()}S.wars=[];refreshGlobalWar();rebuildRoads();
+ while(S.civs.length>target){let i=S.civs.length-1;S.people=S.people.filter(p=>p.ci!==i);S.buildings=S.buildings.filter(b=>b.ci!==i);S.cities=S.cities.filter(c=>c.ci!==i);S.civs.pop()}
+ S.wars=[];refreshGlobalWar();rebuildRoads();markTerritoryDirty();
  active=Math.min(active,S.civs.length-1);tabs();editor();
 }
 function applyScenarioPreset(name){
- if(name==="duel"){ $("scenarioCivs").value=2;$("scenarioPop").value=120;$("seaLevel").value=40;$("rivers").value=6; }
- else if(name==="tribes"){ $("scenarioCivs").value=8;$("scenarioPop").value=55;$("seaLevel").value=38;$("rivers").value=10; }
- else if(name==="islands"){ $("scenarioCivs").value=5;$("scenarioPop").value=70;$("seaLevel").value=56;$("rivers").value=4; }
- else if(name==="warworld"){ $("scenarioCivs").value=6;$("scenarioPop").value=130;$("seaLevel").value=38;$("rivers").value=8; }
- else if(name==="peaceful"){ $("scenarioCivs").value=4;$("scenarioPop").value=90;$("seaLevel").value=42;$("rivers").value=9; }
- else if(name==="techrace"){ $("scenarioCivs").value=4;$("scenarioPop").value=100;$("seaLevel").value=40;$("rivers").value=7; }
- for(const id of ["seaLevel","rivers"]){let ev=new Event("input");$(id).dispatchEvent(ev)}
+ if(name==="solo"){ $("scenarioCivs").value=1;$("scenarioPop").value=120;$("seaLevel").value=42;$("rivers").value=8;$("resourceDensity").value=110;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="wide"; }
+ else if(name==="duel"){ $("scenarioCivs").value=2;$("scenarioPop").value=120;$("seaLevel").value=40;$("rivers").value=6;$("resourceDensity").value=100;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="balanced"; }
+ else if(name==="tribes"){ $("scenarioCivs").value=8;$("scenarioPop").value=55;$("seaLevel").value=38;$("rivers").value=10;$("resourceDensity").value=115;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="compact"; }
+ else if(name==="islands"){ $("scenarioCivs").value=5;$("scenarioPop").value=70;$("seaLevel").value=56;$("rivers").value=4;$("resourceDensity").value=95;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="compact"; }
+ else if(name==="frontier"){ $("scenarioCivs").value=3;$("scenarioPop").value=95;$("seaLevel").value=36;$("rivers").value=8;$("resourceDensity").value=110;$("scenarioWalls").value="dividers";$("scenarioTerritoryStyle").value="wide"; }
+ else if(name==="coldwar"){ $("scenarioCivs").value=2;$("scenarioPop").value=145;$("seaLevel").value=41;$("rivers").value=6;$("resourceDensity").value=105;$("scenarioWalls").value="dividers";$("scenarioTerritoryStyle").value="balanced"; }
+ else if(name==="warworld"){ $("scenarioCivs").value=6;$("scenarioPop").value=130;$("seaLevel").value=38;$("rivers").value=8;$("resourceDensity").value=115;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="wide"; }
+ else if(name==="peaceful"){ $("scenarioCivs").value=4;$("scenarioPop").value=90;$("seaLevel").value=42;$("rivers").value=9;$("resourceDensity").value=110;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="balanced"; }
+ else if(name==="techrace"){ $("scenarioCivs").value=4;$("scenarioPop").value=100;$("seaLevel").value=40;$("rivers").value=7;$("resourceDensity").value=105;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="balanced"; }
+ else if(name==="empire"){ $("scenarioCivs").value=1;$("scenarioPop").value=220;$("seaLevel").value=39;$("rivers").value=9;$("resourceDensity").value=130;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="wide"; }
+ else if(name==="shattered"){ $("scenarioCivs").value=7;$("scenarioPop").value=60;$("seaLevel").value=54;$("rivers").value=11;$("resourceDensity").value=85;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="compact"; }
+ else if(name==="cataclysm"){ $("scenarioCivs").value=4;$("scenarioPop").value=80;$("seaLevel").value=47;$("rivers").value=5;$("resourceDensity").value=75;$("scenarioWalls").value="none";$("scenarioTerritoryStyle").value="balanced"; }
+ for(const id of ["seaLevel","rivers","resourceDensity"]){let ev=new Event("input");$(id).dispatchEvent(ev)}
 }
 function setPersonField(id,key,parse=v=>v){
  $(id).addEventListener("input",()=>{if(selected?.type!=="person")return;selected.obj[key]=parse($(id).value);if(id==="editFirst"||id==="editLast"||id==="editRole")refreshSelectedPerson()});
@@ -945,18 +1069,33 @@ $("remove100Pop").onclick=()=>{removePopulation(active,100);editor()};
 
 $("applyScenarioPreset").onclick=()=>applyScenarioPreset($("scenarioPreset").value);
 $("startScenario").onclick=()=>{
- let preset=$("scenarioPreset").value,civsN=clamp(+$("scenarioCivs").value||2,2,8),popN=clamp(+$("scenarioPop").value||80,1,1000);
+ let preset=$("scenarioPreset").value,civsN=clamp(+$("scenarioCivs").value||1,1,8),popN=clamp(+$("scenarioPop").value||80,1,1000);
  reset();configureCivilizationCount(civsN);
  for(let i=0;i<S.civs.length;i++){
-   S.civs[i].targetPopulation=popN;
-   S.civs[i].populationCap=Math.max(popN*4,200);
-   if(preset==="techrace"){S.civs[i].intel=clamp(70+i*5,0,100);S.civs[i].curiosity=85;S.civs[i].agg=20}
-   if(preset==="warworld"){S.civs[i].agg=85;S.civs[i].courage=85}
-   if(preset==="peaceful"){S.civs[i].agg=10;S.civs[i].coop=90}
+   let v=S.civs[i];
+   v.targetPopulation=popN;
+   v.populationCap=Math.max(popN*4,200);
+   if(preset==="techrace"){v.intel=clamp(70+i*5,0,100);v.curiosity=88;v.agg=18;v.doctrine="scientific";v.style="science";v.tech=600;v.science=260}
+   if(preset==="warworld"){v.agg=85;v.courage=85;v.doctrine="militarist";v.style="military"}
+   if(preset==="peaceful"){v.agg=10;v.coop=90;v.doctrine="peaceful";v.style="nature"}
+   if(preset==="solo"){v.coop=76;v.intel=64;v.curiosity=70;v.style="balanced"}
+   if(preset==="frontier"){v.courage=72;v.disc=68;v.stability=72}
+   if(preset==="coldwar"){v.tech=1100;v.science=420;v.disc=82;v.agg=42;v.coop=38;v.doctrine=i===0?"scientific":"militarist"}
+   if(preset==="empire"){v.tech=900;v.science=360;v.treasury=220;v.wealth=140;v.coop=72;v.style="wealth"}
+   if(preset==="shattered"){v.stability=58;v.coop=52;v.agg=34}
+   if(preset==="cataclysm"){v.stability=55;v.foodSecurity=48;v.coop=42}
    setPopulation(i,popN);
  }
+ let terrStyle=$("scenarioTerritoryStyle")?.value||"balanced";
+ for(const city of S.cities){
+   if(terrStyle==="compact")city.radius=Math.max(220,city.radius*.82);
+   else if(terrStyle==="wide")city.radius=Math.min(700,city.radius*1.2);
+ }
+ if(($("scenarioWalls")?.value||"none")==="dividers")generateDividerWalls(); else S.walls=[];
  if(preset==="warworld")for(let i=0;i<S.civs.length;i++)for(let j=i+1;j<S.civs.length;j++)declareWar(i,j,"Monde en guerre");
- tabs();editor();fitWorld();showToast("🎮 Scénario lancé");
+ if(preset==="coldwar"&&S.civs.length>=2){let a=S.civs[0],b=S.civs[1];a.relations["1"]=-82;b.relations["0"]=-82}
+ if(preset==="cataclysm")story.nextAutoDay=simDayIndex()+240;
+ markTerritoryDirty();rebuildRoads();tabs();editor();fitWorld();showToast("🎮 Scénario lancé");
 };
 
 
@@ -1163,7 +1302,7 @@ async function dbPut(key,val){let db=await openDB();return new Promise((res,rej)
 async function dbGet(key){let db=await openDB();return new Promise((res,rej)=>{let tx=db.transaction("saves","readonly"),q=tx.objectStore("saves").get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
 function fullSavePayload(){return {version:16,seed,settings:{sea:$("seaLevel").value,relief:$("relief").value,humidity:$("humidity").value,temp:$("temperature").value,rivers:$("rivers").value},S:structuredClone(S),history:structuredClone(story.worldEvents),replay:{snapshots:structuredClone(R.snapshots),events:structuredClone(R.events)}}}
 function restorePayload(data){
- if(!data?.S)return false;seed=data.seed??seed;S=data.S;ensureElapsedTime();normalizeCalendarFromMinutes(S.elapsedMinutes);S.cities=S.cities||[];S.roads=S.roads||[];S.armies=S.armies||[];S.wars=S.wars||[];S.history=S.history||[];S.legends=S.legends||[];S.crises=S.crises||[];for(let i=0;i<S.civs.length;i++){let d=civ(i);S.civs[i]={...d,...S.civs[i],stock:{...d.stock,...(S.civs[i].stock||{})},relations:S.civs[i].relations||{}}}ensureGovernments();refreshGlobalWar();if(S.grid?.length){let ratio=7200/4200;let cells=S.grid.length;let approxRows=Math.max(1,Math.round(Math.sqrt(cells/ratio))),approxCols=Math.max(1,Math.round(cells/approxRows));if(approxRows*approxCols===cells){ROWS=approxRows;COLS=approxCols;W=COLS*CELL;H=ROWS*CELL;$("mapSizeLabel").textContent=`${W}×${H}`}}minimapDirty=true;story.worldEvents=data.history||[];R.snapshots=data.replay?.snapshots||[];R.events=data.replay?.events||[];R.recording=$("recordReplay").checked;R.lastCaptureYear=S.year;
+ if(!data?.S)return false;seed=data.seed??seed;S=data.S;ensureElapsedTime();normalizeCalendarFromMinutes(S.elapsedMinutes);S.cities=S.cities||[];markTerritoryDirty();S.roads=S.roads||[];S.armies=S.armies||[];S.wars=S.wars||[];S.history=S.history||[];S.legends=S.legends||[];S.crises=S.crises||[];for(let i=0;i<S.civs.length;i++){let d=civ(i);S.civs[i]={...d,...S.civs[i],stock:{...d.stock,...(S.civs[i].stock||{})},relations:S.civs[i].relations||{}}}ensureGovernments();refreshGlobalWar();if(S.grid?.length){let ratio=7200/4200;let cells=S.grid.length;let approxRows=Math.max(1,Math.round(Math.sqrt(cells/ratio))),approxCols=Math.max(1,Math.round(cells/approxRows));if(approxRows*approxCols===cells){ROWS=approxRows;COLS=approxCols;W=COLS*CELL;H=ROWS*CELL;$("mapSizeLabel").textContent=`${W}×${H}`}}minimapDirty=true;story.worldEvents=data.history||[];R.snapshots=data.replay?.snapshots||[];R.events=data.replay?.events||[];R.recording=$("recordReplay").checked;R.lastCaptureYear=S.year;
  selected=null;active=0;renderWorldJournal();tabs();editor();update();fitWorld();draw();updateReplayUI();return true
 }
 $("saveSimulation").onclick=async()=>{try{await dbPut("latest",fullSavePayload());showToast("💾 Simulation sauvegardée")}catch(e){console.error(e);showToast("⚠ Sauvegarde impossible")}};
@@ -1196,6 +1335,8 @@ $("worldScale").onchange=()=>{
  $("mapSizeLabel").textContent=`${w}×${h}`;
  showToast(`🗺 Taille choisie : ${w}×${h} · régénère le monde pour l'appliquer`);
 };
+$("defaultCivCount").onchange=()=>{$("defaultCivCount").value=clamp(+$("defaultCivCount").value||1,1,8)};
+$("scenarioCivs").onchange=()=>{$("scenarioCivs").value=clamp(+$("scenarioCivs").value||1,1,8)};
 
 /* Mouse camera: right-drag or middle-drag. Wheel zooms around cursor. */
 c.addEventListener("contextmenu",e=>e.preventDefault());
@@ -1206,7 +1347,7 @@ c.addEventListener("pointerdown",e=>{
  if(["food","wood","ore","oil"].includes(t)){for(let i=0;i<br*8;i++)S.res.push({type:t,x:wx+rnd(-br*28,br*28),y:wy+rnd(-br*28,br*28)});return}
  if(t==="wall"){for(let yy=wy-br*45;yy<=wy+br*45;yy+=30)S.walls.push({x:wx,y:yy});return}
  if(t==="erase"){S.walls=S.walls.filter(w=>(w.x-wx)**2+(w.y-wy)**2>(br*55)**2);S.res=S.res.filter(q=>(q.x-wx)**2+(q.y-wy)**2>(br*55)**2);return}
- if(["water","plains","forest","mountain","desert","snow"].includes(t)){let gx=Math.floor(wx/CELL),gy=Math.floor(wy/CELL);for(let dy=-br;dy<=br;dy++)for(let dx=-br;dx<=br;dx++){let xx=gx+dx,yy=gy+dy;if(xx>=0&&yy>=0&&xx<COLS&&yy<ROWS&&dx*dx+dy*dy<=br*br)S.grid[yy*COLS+xx].type=t}minimapDirty=true}
+ if(["water","plains","forest","mountain","desert","snow"].includes(t)){let gx=Math.floor(wx/CELL),gy=Math.floor(wy/CELL);for(let dy=-br;dy<=br;dy++)for(let dx=-br;dx<=br;dx++){let xx=gx+dx,yy=gy+dy;if(xx>=0&&yy>=0&&xx<COLS&&yy<ROWS&&dx*dx+dy*dy<=br*br)S.grid[yy*COLS+xx].type=t}minimapDirty=true;markTerritoryDirty()}
 });
 c.addEventListener("pointermove",e=>{
  if(!drag.on)return;

@@ -47,3 +47,39 @@ L'interface affiche désormais une date immédiatement compréhensible :
 `📅 Année 12 · Été · Jour 43 · 🕒 08:00`.
 
 Le journal et les replays utilisent eux aussi `Année · Saison · Jour`.
+
+
+## V17 — Dynamic Realms
+Cette version pousse surtout trois axes :
+
+### 1) Monde de départ plus libre
+- le nouveau monde n'impose plus 2 civilisations ;
+- le joueur peut démarrer avec **1 à 8 civilisations** ;
+- les murs de séparation initiaux sont maintenant **optionnels** ;
+- le mode scénario permet aussi de choisir séparément le style de territoire initial.
+
+### 2) Territoires améliorés
+- les territoires ne sont plus juste des cercles visuels autour des villes ;
+- une **carte d'influence** colorée est calculée à partir des villes, de leur population, prospérité, défense et statut de capitale ;
+- les frontières sont plus lisibles et plus cohérentes ;
+- les captures de villes et fondations de nouvelles villes mettent les frontières à jour.
+
+### 3) Textures et rendu
+- PNJ plus détaillés ;
+- bâtiments plus détaillés et davantage différenciés selon leur type ;
+- routes, murs et ressources légèrement améliorés ;
+- couleurs de biomes affinées ;
+- rendu plus propre tout en restant léger.
+
+### Nouveaux presets
+- Solo / une seule civilisation
+- Frontière séparée
+- Guerre froide
+- Empire émergent
+- Monde fracturé
+- Âge des catastrophes
+
+### Optimisations
+- cache de territoires recalculé seulement quand nécessaire ;
+- pas de surcoût important ajouté au rendu ;
+- génération de départ mutualisée pour 1 à 8 civilisations.
