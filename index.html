@@ -1,32 +1,163 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI World V4 — Civilization Sandbox</title><link rel="stylesheet" href="style.css"></head><body>
-<header><div><h1>AI World V4</h1><small>Civilization Sandbox — crée, observe, détruis, recommence.</small></div>
-<div class="top"><button id="play">▶</button><button id="pause">⏸</button><button id="new">↻ Monde</button>
-<label>Vitesse <select id="speed"><option value="1">×1</option><option value="2">×2</option><option value="5">×5</option><option value="10">×10</option><option value="25">×25</option><option value="50">×50</option><option value="100">×100</option></select></label>
-<label>Temps <select id="timeScale"><option value="1">1 min/tick</option><option value="5">5 min/tick</option><option value="30">30 min/tick</option><option value="120">2 h/tick</option><option value="720">12 h/tick</option><option value="1440">1 jour/tick</option></select></label>
-<button id="cinema">🎥 Spectateur</button></div></header>
-<main><section class="stage"><div class="tools">
-<select id="tool"><option value="select">👆 Sélection</option><option value="wall">🧱 Mur</option><option value="erase">💥 Effacer mur</option><option value="food">🌾 Nourriture</option><option value="wood">🪵 Bois</option><option value="ore">⛏ Minerai</option><option value="water">💧 Eau</option><option value="forest">🌲 Forêt</option></select>
-<button id="breakWalls">Détruire tous les murs</button><button id="war">⚔ Guerre globale</button><button id="peace">☮ Paix</button>
-<select id="disaster"><option value="">Catastrophe…</option><option value="famine">Famine</option><option value="plague">Épidémie</option><option value="fire">Incendie</option><option value="storm">Tempête</option><option value="meteor">Météorite</option></select><button id="trigger">Déclencher</button>
-</div><canvas id="c" width="1280" height="720"></canvas>
-<div class="bar"><b id="clock"></b><span id="weather"></span><span id="season"></span><span id="selected">Aucune sélection</span></div></section>
-<aside>
-<section><h2>🌍 Monde</h2><label>Météo <input id="weatherRate" type="range" min="0" max="100" value="35"><i id="weatherRateV"></i></label>
-<label>Ressources <input id="resources" type="range" min="25" max="200" value="100"><i id="resourcesV"></i></label>
-<label>Puissance catastrophe <input id="disasterPower" type="range" min="1" max="100" value="45"><i id="disasterPowerV"></i></label>
-<label><input id="births" type="checkbox" checked> Naissances</label><label><input id="disease" type="checkbox" checked> Maladies</label><label><input id="trade" type="checkbox" checked> Commerce</label></section>
-<section><h2>🏛 Civilisations</h2><div id="civTabs"></div><button id="addCiv">＋ civilisation</button><button id="removeCiv">− civilisation</button>
-<div id="civEditor">
-<label>Nom <input id="civName" type="text"></label>
-<label>Intelligence <input id="intel" type="range" min="0" max="100"><i id="intelV"></i></label>
-<label>Agressivité <input id="agg" type="range" min="0" max="100"><i id="aggV"></i></label>
-<label>Discipline <input id="disc" type="range" min="0" max="100"><i id="discV"></i></label>
-<label>Curiosité <input id="curiosity" type="range" min="0" max="100"><i id="curiosityV"></i></label>
-<label>Coopération <input id="coop" type="range" min="0" max="100"><i id="coopV"></i></label>
-<label>Fertilité <input id="fertility" type="range" min="0" max="100"><i id="fertilityV"></i></label>
-<label>Courage <input id="courage" type="range" min="0" max="100"><i id="courageV"></i></label>
-<div class="metrics"><span>👥 <b id="pop"></b></span><span>🔬 <b id="science"></b></span><span>⚙ <b id="tech"></b></span><span>⚔ <b id="military"></b></span><span>🏘 <b id="cities"></b></span><span>💰 <b id="wealth"></b></span></div></div></section>
-<section><h2>🧬 Technologies</h2><div id="techTree" class="tree"></div></section>
-<section><h2>📜 Événements</h2><div id="log"></div></section>
-</aside></main><script src="game.js"></script></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI World V6 — Evolution Sandbox</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">AW</div>
+      <div><h1>AI World</h1><span>V6 · Evolution Sandbox</span></div>
+    </div>
+    <div class="sim-controls">
+      <button id="play" class="btn primary">▶ <span>Lancer</span></button>
+      <button id="pause" class="btn">⏸ <span>Pause</span></button>
+      <button id="new" class="btn">↻ <span>Générer</span></button>
+      <div class="control-group"><label>Simulation</label><select id="speed">
+        <option value="1">×1</option><option value="2">×2</option><option value="5">×5</option>
+        <option value="10">×10</option><option value="25">×25</option><option value="50">×50</option><option value="100">×100</option>
+      </select></div>
+      <div class="control-group"><label>Temps</label><select id="timeScale">
+        <option value="1">1 min/tick</option><option value="5">5 min/tick</option><option value="30">30 min/tick</option>
+        <option value="120">2 h/tick</option><option value="720">12 h/tick</option><option value="1440">1 jour/tick</option>
+      </select></div>
+      <button id="cinema" class="btn">🎥 <span>Spectateur</span></button>
+    </div>
+  </header>
+
+  <div class="status-strip">
+    <div class="status-item"><span class="dot live"></span><b id="clock">Année 1</b></div>
+    <div class="status-item" id="weather">🌦 Clair</div>
+    <div class="status-item" id="season">🌱 Printemps</div>
+    <div class="status-item" id="eraGlobal">🪵 Monde tribal</div>
+    <div class="status-item selected-chip" id="selected">Aucune sélection</div>
+  </div>
+
+  <main class="main-layout">
+    <section class="world-panel">
+      <div class="world-toolbar">
+        <div class="toolbar-group"><span class="toolbar-label">Outil carte</span><select id="tool">
+          <option value="select">👆 Sélection</option>
+          <option value="water">💧 Eau</option><option value="plains">🌱 Plaine</option>
+          <option value="forest">🌲 Forêt</option><option value="mountain">⛰ Montagne</option>
+          <option value="desert">🏜 Désert</option><option value="snow">❄ Neige</option>
+          <option value="food">🌾 Nourriture</option><option value="wood">🪵 Bois</option>
+          <option value="ore">⛏ Minerai</option><option value="oil">🛢 Pétrole</option>
+          <option value="wall">🧱 Mur</option><option value="erase">🧽 Effacer</option>
+        </select></div>
+        <div class="toolbar-group"><span class="toolbar-label">Pinceau</span><select id="brush">
+          <option value="1">Petit</option><option value="2" selected>Moyen</option><option value="4">Grand</option><option value="7">Très grand</option>
+        </select></div>
+        <div class="toolbar-separator"></div>
+        <button id="breakWalls" class="btn compact danger-soft">🧱 Détruire murs</button>
+        <button id="war" class="btn compact danger">⚔ Guerre</button>
+        <button id="peace" class="btn compact success">☮ Paix</button>
+        <div class="toolbar-separator"></div>
+        <select id="disaster">
+          <option value="">Événement…</option><option value="famine">🌾 Famine</option><option value="plague">🦠 Épidémie</option>
+          <option value="fire">🔥 Incendie</option><option value="storm">⛈ Tempête</option><option value="meteor">☄ Météorite</option>
+          <option value="nuke">☢ Frappe nucléaire</option>
+        </select>
+        <button id="trigger" class="btn compact warning">Déclencher</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="c" width="1280" height="720"></canvas>
+        <div class="legend">
+          <span><i class="sw water"></i>Eau</span><span><i class="sw forest"></i>Forêt</span>
+          <span><i class="sw mountain"></i>Montagne</span><span><i class="sw desert"></i>Désert</span><span><i class="sw snow"></i>Neige</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="side-tab active" data-panel="gen-panel">🗺<span>Génération</span></button>
+        <button class="side-tab" data-panel="world-panel-settings">🌍<span>Monde</span></button>
+        <button class="side-tab" data-panel="civs-panel">🏛<span>Civs</span></button>
+        <button class="side-tab" data-panel="tech-panel">🧬<span>Tech</span></button>
+        <button class="side-tab" data-panel="selection-panel">👤<span>Sélection</span></button>
+        <button class="side-tab" data-panel="events-panel">📜<span>Journal</span></button>
+      </div>
+
+      <div class="sidebar-content">
+        <section id="gen-panel" class="side-panel active">
+          <div class="panel-header"><div><h2>Génération du monde</h2><p>Règle la géographie puis clique sur Générer.</p></div></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Niveau des océans</b><small>Plus haut = moins de terres</small></span><i id="seaLevelV">42%</i></label><input id="seaLevel" type="range" min="20" max="70" value="42"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Relief</b><small>Montagnes et variations d’altitude</small></span><i id="reliefV">55%</i></label><input id="relief" type="range" min="0" max="100" value="55"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Humidité</b><small>Forêts / déserts</small></span><i id="humidityV">55%</i></label><input id="humidity" type="range" min="0" max="100" value="55"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Température</b><small>Déserts / neige</small></span><i id="temperatureV">55%</i></label><input id="temperature" type="range" min="0" max="100" value="55"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Rivières</b><small>Nombre de cours d’eau</small></span><i id="riversV">6</i></label><input id="rivers" type="range" min="0" max="16" value="6"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Densité des ressources</b><small>Nourriture, bois, minerai et pétrole</small></span><i id="resourceDensityV">100%</i></label><input id="resourceDensity" type="range" min="20" max="200" value="100"></div>
+          <button id="regen" class="btn primary wide">🗺 Générer avec ces paramètres</button>
+        </section>
+
+        <section id="world-panel-settings" class="side-panel">
+          <div class="panel-header"><div><h2>Règles du monde</h2><p>Paramètres globaux de la simulation.</p></div></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Météo</b></span><i id="weatherRateV">35%</i></label><input id="weatherRate" type="range" min="0" max="100" value="35"></div>
+          <div class="setting-card"><label class="setting-row"><span><b>Catastrophes</b></span><i id="disasterPowerV">45</i></label><input id="disasterPower" type="range" min="1" max="100" value="45"></div>
+          <div class="toggle-list">
+            <label class="toggle-row"><span>👶 Naissances</span><input id="births" type="checkbox" checked><i></i></label>
+            <label class="toggle-row"><span>🦠 Maladies</span><input id="disease" type="checkbox" checked><i></i></label>
+            <label class="toggle-row"><span>💱 Commerce</span><input id="trade" type="checkbox" checked><i></i></label>
+            <label class="toggle-row"><span>🏗 Construction automatique</span><input id="autoBuild" type="checkbox" checked><i></i></label>
+          </div>
+        </section>
+
+        <section id="civs-panel" class="side-panel">
+          <div class="panel-header"><div><h2>Civilisations</h2><p>Jusqu’à 8 peuples.</p></div><div class="mini-actions"><button id="addCiv" class="icon-btn">＋</button><button id="removeCiv" class="icon-btn danger-text">−</button></div></div>
+          <div id="civTabs" class="civ-tabs"></div>
+          <label class="name-field"><span>Nom</span><input id="civName" type="text"></label>
+          <div class="metrics">
+            <div><small>Population</small><b id="pop">0</b></div><div><small>Ère</small><b id="era">Tribal</b></div>
+            <div><small>Science</small><b id="science">0</b></div><div><small>Tech</small><b id="tech">0</b></div>
+            <div><small>Militaire</small><b id="military">0</b></div><div><small>Villes</small><b id="cities">0</b></div>
+          </div>
+          <div class="trait-grid">
+            <div class="trait"><label><span>🧠 Intelligence</span><i id="intelV"></i></label><input id="intel" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>⚔ Agressivité</span><i id="aggV"></i></label><input id="agg" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>🎯 Discipline</span><i id="discV"></i></label><input id="disc" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>🔭 Curiosité</span><i id="curiosityV"></i></label><input id="curiosity" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>🤝 Coopération</span><i id="coopV"></i></label><input id="coop" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>👶 Fertilité</span><i id="fertilityV"></i></label><input id="fertility" type="range" min="0" max="100"></div>
+            <div class="trait"><label><span>🛡 Courage</span><i id="courageV"></i></label><input id="courage" type="range" min="0" max="100"></div>
+          </div>
+        </section>
+
+        <section id="tech-panel" class="side-panel">
+          <div class="panel-header"><div><h2>Technologies & bâtiments</h2><p>Les bâtiments et armes se débloquent avec l’évolution.</p></div></div>
+          <div id="techTree" class="tech-tree"></div>
+          <h3>🏗 Bâtiments disponibles</h3><div id="buildingList" class="unlock-list"></div>
+          <h3>⚔ Armement actuel</h3><div id="weaponList" class="unlock-list"></div>
+        </section>
+
+        <section id="selection-panel" class="side-panel">
+          <div class="panel-header"><div><h2>Fiche de sélection</h2><p>PNJ, bâtiment ou ville.</p></div></div>
+          <div id="detailCard" class="detail-card"><div class="empty">Clique sur un PNJ ou un bâtiment.</div></div>
+        </section>
+
+        <section id="events-panel" class="side-panel">
+          <div class="panel-header"><div><h2>Journal</h2><p>Évolution, guerres et événements majeurs.</p></div></div>
+          <div id="log" class="event-log"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+</div>
+<script src="game.js"></script>
+<script>
+(() => {
+  document.querySelectorAll('.side-tab').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('.side-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.panel)?.classList.add('active');
+  }));
+})();
+</script>
+</body>
+</html>
