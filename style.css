@@ -337,3 +337,27 @@ body.following #selected:after{content:" · 🎥 suivi";color:#7db3cf}
 /* V17 additions */
 .scenario-card select, .scenario-card input { min-height: 34px; }
 .city-card, .diplo-row { backdrop-filter: blur(2px); }
+
+
+/* ==================================================
+   V18 — Zenith Sandbox
+   ================================================== */
+:root{--zenith:#7bc7ff;--zenith2:#83e0b0}
+body{background:radial-gradient(circle at 50% -20%,rgba(71,122,147,.16),transparent 44%),var(--bg)}
+.hud-top{border-bottom-color:#36515c}
+.logo b{background:linear-gradient(90deg,#f3f7f8,#9ed6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.world-wrap:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;box-shadow:inset 0 0 100px rgba(0,0,0,.20)}
+#c{position:relative;z-index:1}
+.map-tooltip{display:none;position:absolute;z-index:18;pointer-events:none;min-width:150px;max-width:250px;padding:8px 10px;border-radius:9px;background:rgba(8,15,19,.91);border:1px solid rgba(158,206,226,.22);box-shadow:0 8px 28px rgba(0,0,0,.34);backdrop-filter:blur(8px);color:#dfecef;font-size:10px;line-height:1.42}
+.map-tooltip.show{display:block}.map-tooltip b{display:block;color:#fff;font-size:11px;margin-bottom:2px}.map-tooltip small{color:#8da5ae}.map-tooltip .owner{font-weight:800}
+.scenario-civ-head{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 6px}.scenario-civ-head b{font-size:10px}.scenario-civ-head small{font-size:8px;color:#7f969f}
+.scenario-civ-setup{display:grid;gap:6px;max-height:290px;overflow:auto;padding-right:2px}
+.scenario-civ-card{border:1px solid #304852;border-radius:9px;padding:8px;background:linear-gradient(135deg,rgba(255,255,255,.025),rgba(255,255,255,0)),#122027}
+.scenario-civ-card .head{display:grid;grid-template-columns:30px 1fr 72px;gap:6px;align-items:center;margin-bottom:6px}
+.scenario-civ-card .swatch{width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.18);padding:2px}
+.scenario-civ-card input,.scenario-civ-card select{width:100%;height:29px;background:#17272e;color:#eaf2f4;border:1px solid #344c56;border-radius:6px;padding:0 6px;font-size:9px}
+.scenario-civ-card .traits{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}.scenario-civ-card .traits label{font-size:8px;color:#89a0a9}.scenario-civ-card .traits input[type=range]{height:18px;padding:0;accent-color:#7bc7ff}
+.scenario-buttons{grid-template-columns:1fr 1fr 1.15fr}
+.gov-lock-row{display:flex!important;align-items:center;justify-content:space-between!important;padding:7px 8px;background:#101a1f;border:1px solid #2a3f48;border-radius:7px}.gov-lock-row input{width:auto!important;height:auto!important}
+.city-card{transition:.12s}.city-card:hover{border-color:#476b79;transform:translateY(-1px)}
+@media(max-width:640px){.scenario-civ-card .traits{grid-template-columns:1fr 1fr}.scenario-buttons{grid-template-columns:1fr}}

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V17 — Dynamic Realms</title>
+  <title>AI World V18 — Zenith Sandbox</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V17 · Dynamic Realms</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V18 · Zenith Sandbox</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -37,7 +37,7 @@
       <span>🌍 <b id="mapSizeLabel">7200×4200</b></span>
       <span>👥 <b id="totalPopHud">0</b></span>
       <span>🏘 <b id="totalBuildingsHud">0</b></span>
-      <span>🏛 <b id="totalCivsHud">2</b></span>
+      <span>🏛 <b id="totalCivsHud">1</b></span>
       <span>🏙 <b id="totalCitiesHud">0</b></span>
       <span>🛡 <b id="totalArmiesHud">0</b></span>
       <span>⚔ <b id="warStateHud">Paix</b></span>
@@ -50,6 +50,7 @@
       <button id="cinemaSettings">⚙ Paramètres</button>
     </div>
     <canvas id="c" width="1280" height="720"></canvas>
+    <div id="mapTooltip" class="map-tooltip"></div>
 
     <div class="mini-hud">
       <span id="eraGlobal">🪵 Tribal</span>
@@ -264,6 +265,7 @@
               <option value="balanced">Équilibre</option><option value="welfare">Bien-être</option><option value="growth">Croissance</option>
               <option value="science">Science</option><option value="trade">Commerce</option><option value="military">Défense</option>
             </select></label>
+            <label class="full-row gov-lock-row"><span>🔒 Conserver le régime choisi</span><input id="govLock" type="checkbox"></label>
           </div>
           <div class="government-card">
             <div><small>Dirigeant</small><b id="govLeader">—</b></div>
@@ -328,14 +330,20 @@
               </select>
             </label>
           </div>
+          <div class="scenario-civ-head">
+            <b>🏳 Civilisations du scénario</b>
+            <small>Personnalise les peuples avant le lancement.</small>
+          </div>
+          <div id="scenarioCivSetup" class="scenario-civ-setup"></div>
           <div class="scenario-buttons">
+            <button id="randomizeScenarioCivs">🎲 Randomiser</button>
             <button id="applyScenarioPreset">Charger preset</button>
             <button id="startScenario" class="primary-action">▶ Lancer scénario</button>
           </div>
         </div>
 
         <h3>Génération</h3>
-        <p class="panel-note">La V17 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
+        <p class="panel-note">La V18 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
           <label>Océans <b id="seaLevelV">42%</b><input id="seaLevel" type="range" min="20" max="70" value="42"></label>
           <label>Relief <b id="reliefV">55%</b><input id="relief" type="range" min="0" max="100" value="55"></label>
@@ -377,6 +385,9 @@
           <label><span>🗺 Territoires / frontières</span><input id="showTerritories" type="checkbox" checked></label>
           <label><span>🛣 Routes visibles</span><input id="showRoads" type="checkbox" checked></label>
           <label><span>🚩 Armées visibles</span><input id="showArmies" type="checkbox" checked></label>
+          <label><span>💱 Routes commerciales</span><input id="showTradeRoutes" type="checkbox" checked></label>
+          <label><span>🌗 Cycle jour / nuit</span><input id="showLighting" type="checkbox" checked></label>
+          <label><span>🔎 Infos au survol</span><input id="showHoverInfo" type="checkbox" checked></label>
           <label><span>🎬 Réalisateur automatique</span><input id="autoDirector" type="checkbox" checked></label>
         </div>
         <h3>Histoire automatique</h3>
@@ -524,6 +535,7 @@
 
     <div class="tool-row" id="civTools">
       <button id="addCiv" class="tool">➕<span>Civilisation</span></button>
+      <button class="tool" data-tool="civSeed" title="Créer une civilisation à l'endroit choisi">🏳<span>Peuple ici</span></button>
       <button id="removeCiv" class="tool">➖<span>Supprimer</span></button>
       <button id="openCiv" class="tool">⚙<span>Paramètres</span></button>
       <button id="new" class="tool">🗺<span>Nouveau monde</span></button>
@@ -533,9 +545,10 @@
     <div class="tool-row" id="societyTools">
       <button id="showSociety" class="tool">🏛<span>Société</span></button>
       <button id="showCities" class="tool">🏙<span>Villes</span></button>
-      <button id="foundCity" class="tool">🏗<span>Fonder ville</span></button>
+      <button id="foundCity" class="tool">🏗<span>Ville ici</span></button>
       <button id="toggleTerritories" class="tool">🗺<span>Territoires</span></button>
       <button id="toggleRoads" class="tool">🛣<span>Routes</span></button>
+      <button id="toggleTradeRoutes" class="tool">💱<span>Commerce</span></button>
       <button id="toggleArmies" class="tool">🚩<span>Armées</span></button>
     </div>
 
