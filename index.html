@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI World V18 — Zenith Sandbox</title>
+  <title>AI World V19 — Epoch Frontiers</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="game">
   <header class="hud-top">
-    <div class="logo"><b>AI WORLD</b><span>V18 · Zenith Sandbox</span></div>
+    <div class="logo"><b>AI WORLD</b><span>V19 · Epoch Frontiers</span></div>
 
     <div class="hud-center">
       <button id="pause" class="hud-btn" title="Pause">⏸</button>
@@ -51,6 +51,27 @@
     </div>
     <canvas id="c" width="1280" height="720"></canvas>
     <div id="mapTooltip" class="map-tooltip"></div>
+
+    <button id="legendToggle" class="legend-toggle" title="Afficher la légende">🧭 Légende</button>
+    <div id="mapLegend" class="map-legend">
+      <div class="legend-head"><b>🧭 Légende de la carte</b><button id="legendClose">✕</button></div>
+      <div class="legend-grid">
+        <div><i class="lg-border"></i><span>Frontière</span></div>
+        <div><i class="lg-contested"></i><span>Frontière contestée</span></div>
+        <div><i class="lg-river"></i><span>Rivière</span></div>
+        <div><i class="lg-road"></i><span>Route</span></div>
+        <div><i class="lg-trade"></i><span>Route commerciale</span></div>
+        <div><i class="lg-wall"></i><span>Mur</span></div>
+        <div><i class="lg-strategic"></i><span>Point stratégique</span></div>
+        <div><i class="lg-army"></i><span>Armée</span></div>
+        <div><i class="lg-food"></i><span>Nourriture</span></div>
+        <div><i class="lg-ore"></i><span>Minerai</span></div>
+        <div><i class="lg-oil"></i><span>Pétrole</span></div>
+        <div><i class="lg-wood"></i><span>Bois</span></div>
+      </div>
+      <small>Les couleurs de fond correspondent aux territoires des civilisations. Les zones dorées sont des objectifs économiques ou militaires importants.</small>
+    </div>
+
 
     <div class="mini-hud">
       <span id="eraGlobal">🪵 Tribal</span>
@@ -101,14 +122,21 @@
             <label>Sexe<select id="editSex"><option value="F">Femme</option><option value="M">Homme</option></select></label>
             <label class="full-row">Rôle<input id="editRole" type="text" placeholder="Ex. Médecin, Président, Artisan…"></label>
             <label>Civilisation<select id="editCiv"></select></label>
-            <label>Taille<select id="editScale"><option value="0.85">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option><option value="1.3">Très grande</option></select></label>
+            <label>Taille<select id="editScale"><option value="0.9">Petite</option><option value="1">Normale</option><option value="1.15">Grande</option><option value="1.3">Très grande</option><option value="1.45">Imposante</option></select></label>
           </div>
 
           <h3>Apparence</h3>
           <div class="editor-grid three">
             <label>Peau<input id="editSkin" type="color"></label>
             <label>Cheveux<input id="editHair" type="color"></label>
-            <label>Vêtements<input id="editClothes" type="color"></label>
+            <label>Couleur tenue<input id="editClothes" type="color"></label>
+            <label>Accent tenue<input id="editOutfitAccent" type="color"></label>
+            <label>Style tenue<select id="editOutfitStyle">
+              <option value="auto">Adapté à l'époque</option><option value="civil">Civil</option><option value="worker">Travailleur</option>
+              <option value="scholar">Savant</option><option value="military">Militaire</option><option value="formal">Officiel</option>
+            </select></label>
+            <label>Motif<select id="editOutfitPattern"><option value="plain">Uni</option><option value="trim">Bordures</option><option value="stripe">Bande</option><option value="split">Bicolore</option></select></label>
+            <label>Couvre-chef<select id="editHeadwear"><option value="auto">Auto</option><option value="none">Aucun</option><option value="cap">Bonnet / casquette</option><option value="hood">Capuche</option><option value="helmet">Casque</option><option value="hat">Chapeau</option></select></label>
             <label class="full-row">Coiffure<select id="editHairStyle">
               <option value="short">Courte</option><option value="long">Longue</option><option value="curly">Bouclée</option>
               <option value="mohawk">Crête</option><option value="bald">Chauve</option>
@@ -174,29 +202,31 @@
         <div class="sandbox-card">
           <div class="card-title">🎛 Population & croissance</div>
           <div class="editor-grid two">
-            <label>Population cible<input id="targetPopulation" type="number" min="0" max="2000" value="100"></label>
-            <label>Population max<input id="populationCap" type="number" min="10" max="5000" value="500"></label>
+            <label>Habitants<input id="manualPopulation" type="number" value="100"></label>
             <label>Taux natalité<select id="birthRateMode">
-              <option value="0.45">Très faible</option>
-              <option value="0.75">Faible</option>
+              <option value="0.55">Faible</option>
               <option value="1" selected>Normal</option>
-              <option value="1.4">Élevé</option>
-              <option value="2">Très élevé</option>
+              <option value="1.35">Élevé</option>
+              <option value="1.75">Très élevé</option>
             </select></label>
-            <label>Âge initial<select id="ageProfile">
+            <label>Âge des habitants ajoutés<select id="ageProfile">
               <option value="balanced">Équilibré</option>
               <option value="young">Jeune</option>
               <option value="adult">Adultes</option>
               <option value="mixed">Très mélangé</option>
             </select></label>
+            <div class="population-health">
+              <small>Renouvellement</small><b id="demographyState">Stable</b>
+            </div>
           </div>
           <div class="population-actions">
-            <button id="applyPopulation">Appliquer la population</button>
+            <button id="applyPopulation">Fixer le nombre d'habitants</button>
             <button id="add10Pop">+10</button>
             <button id="add100Pop">+100</button>
             <button id="remove10Pop">−10</button>
             <button id="remove100Pop">−100</button>
           </div>
+          <p class="panel-note">Aucune limite minimale ou maximale artificielle : la population évolue ensuite selon les couples, la fertilité, le logement et les ressources.</p>
         </div>
 
         <div class="metrics">
@@ -313,7 +343,7 @@
           </label>
           <div class="editor-grid two">
             <label>Nb civilisations<input id="scenarioCivs" type="number" min="1" max="8" value="1"></label>
-            <label>Population / civ<input id="scenarioPop" type="number" min="1" max="1000" value="80"></label>
+            <label>Population par défaut<input id="scenarioPop" type="number" value="80"></label>
           </div>
           <div class="editor-grid two">
             <label>Civilisations séparées au départ
@@ -343,7 +373,7 @@
         </div>
 
         <h3>Génération</h3>
-        <p class="panel-note">La V18 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
+        <p class="panel-note">La V19 génère de grands continents cohérents, des chaînes de montagnes et des rivières continues. La carte fait 7200 × 4200 unités.</p>
         <div class="slider-stack">
           <label>Océans <b id="seaLevelV">42%</b><input id="seaLevel" type="range" min="20" max="70" value="42"></label>
           <label>Relief <b id="reliefV">55%</b><input id="relief" type="range" min="0" max="100" value="55"></label>
@@ -366,7 +396,17 @@
             </label>
           </div>
         </div>
-        <button id="regen" class="full primary">🗺 Générer le monde</button>
+        <div class="sandbox-card world-generator-actions">
+          <div class="card-title">🌍 Nouveau monde</div>
+          <label class="field"><span>Graine du monde</span><input id="worldSeed" type="number" value="1"></label>
+          <div class="world-gen-buttons">
+            <button id="newRandomWorld" class="primary-action">🎲 Nouveau monde aléatoire</button>
+            <button id="regenSameSeed">♻ Régénérer cette graine</button>
+            <button id="rerollResources">⛏ Nouvelles ressources</button>
+          </div>
+          <small>Les réglages de relief, océans, climat, taille et civilisations ci-dessus sont appliqués à la prochaine génération.</small>
+        </div>
+        <button id="regen" class="full primary">🗺 Générer un nouveau monde</button>
         <h3>Règles</h3>
         <div class="toggle-stack">
           <label><span>👶 Naissances</span><input id="births" type="checkbox" checked></label>
@@ -386,6 +426,8 @@
           <label><span>🛣 Routes visibles</span><input id="showRoads" type="checkbox" checked></label>
           <label><span>🚩 Armées visibles</span><input id="showArmies" type="checkbox" checked></label>
           <label><span>💱 Routes commerciales</span><input id="showTradeRoutes" type="checkbox" checked></label>
+          <label><span>💎 Points stratégiques</span><input id="showStrategicZones" type="checkbox" checked></label>
+          <label><span>🌊 Rivières</span><input id="showRivers" type="checkbox" checked></label>
           <label><span>🌗 Cycle jour / nuit</span><input id="showLighting" type="checkbox" checked></label>
           <label><span>🔎 Infos au survol</span><input id="showHoverInfo" type="checkbox" checked></label>
           <label><span>🎬 Réalisateur automatique</span><input id="autoDirector" type="checkbox" checked></label>
@@ -464,7 +506,7 @@
           <small>En Auto, le moteur allège les calculs invisibles en ×25–×100 tout en conservant l'horloge du monde.</small>
         </div>
         <div class="slider-stack">
-          <label>Taille PNJ <b id="npcVisualScaleV">120%</b><input id="npcVisualScale" type="range" min="80" max="180" value="120"></label>
+          <label>Taille PNJ <b id="npcVisualScaleV">140%</b><input id="npcVisualScale" type="range" min="100" max="220" value="140"></label>
           <label>Taille bâtiments <b id="buildingVisualScaleV">125%</b><input id="buildingVisualScale" type="range" min="80" max="180" value="125"></label>
           <label>Détails textures <b id="textureDetailV">80%</b><input id="textureDetail" type="range" min="20" max="100" value="80"></label>
         </div>
@@ -549,6 +591,7 @@
       <button id="toggleTerritories" class="tool">🗺<span>Territoires</span></button>
       <button id="toggleRoads" class="tool">🛣<span>Routes</span></button>
       <button id="toggleTradeRoutes" class="tool">💱<span>Commerce</span></button>
+      <button id="toggleStrategic" class="tool">💎<span>Stratégique</span></button>
       <button id="toggleArmies" class="tool">🚩<span>Armées</span></button>
     </div>
 
