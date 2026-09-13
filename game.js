@@ -4,7 +4,7 @@
 
   const WORLD_W = 4200;
   const WORLD_H = 2800;
-  const CELL = 40;
+  const CELL = 20;
   const COLS = Math.ceil(WORLD_W / CELL);
   const ROWS = Math.ceil(WORLD_H / CELL);
 
@@ -20,6 +20,16 @@
     calm:"#6d91c4", aggressive:"#d0665a", greedy:"#d2ad45",
     social:"#8a78d1", explorer:"#4e9a9a"
   };
+
+  const JOBS = ["farmer","woodcutter","miner","hunter","soldier","merchant"];
+  const JOB_LABELS = {
+    farmer:"Fermier", woodcutter:"Bûcheron", miner:"Mineur",
+    hunter:"Chasseur", soldier:"Soldat", merchant:"Marchand"
+  };
+  const SKINS = ["#f3c9a5","#d9a77d","#b97850","#815137","#5a3828"];
+  const HAIRS = ["#241b17","#4b3023","#7a4b27","#c4934e","#d8c6a3","#8b3f2f"];
+  const CLOTHES = ["#496b8a","#6c7f45","#87574b","#765c8d","#4f7d72","#8a7046"];
+
 
   const firstNames = [
     "Léo","Noah","Milo","Eden","Sacha","Nolan","Liam","Maël","Tom","Jules","Axel","Nino",
@@ -111,7 +121,11 @@
     return {
       id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2),
       name:randomName(), x,y, vx:rand(-1,1), vy:rand(-1,1),
-      hp:100, hunger:rand(65,100), age:0, trait,
+      hp:100, hunger:rand(65,100), age:Math.floor(rand(6,72)), trait,
+      sex: Math.random()<.5 ? "F" : "M",
+      job: pick(JOBS),
+      skin: pick(SKINS), hair: pick(HAIRS), clothes: pick(CLOTHES),
+      hairStyle: Math.floor(rand(0,4)),
       aggression: trait==="aggressive" ? rand(.6,.95) : rand(.08,.55),
       speed:rand(.85,1.3), inventory:{food:0,wood:0,gold:0},
       target:null, flash:0
@@ -183,9 +197,27 @@
         ctx.fillStyle=cell.shade>.5?bio.c1:bio.c2;
         ctx.fillRect(p.x,p.y,s,s);
 
-        if(state.camera.zoom>.7 && cell.biome==="forest" && cell.shade>.65){
-          ctx.fillStyle="rgba(7,35,17,.35)";
-          ctx.beginPath();ctx.arc(p.x+s*.5,p.y+s*.5,Math.max(1.5,4*state.camera.zoom),0,Math.PI*2);ctx.fill();
+        if(state.camera.zoom>.42){
+          const px=Math.max(1,Math.round(2*state.camera.zoom));
+          const seed=(cx*92821+cy*68917)%11;
+          if(cell.biome==="grass" && seed<5){
+            ctx.fillStyle=seed%2?"#76a65c":"#3f6e3b";
+            ctx.fillRect(Math.round(p.x+s*.25),Math.round(p.y+s*.65),px,px*2);
+          } else if(cell.biome==="forest"){
+            ctx.fillStyle="#173d29";
+            ctx.fillRect(Math.round(p.x+s*.48),Math.round(p.y+s*.48),px*2,px*4);
+            ctx.fillStyle=seed%2?"#39784a":"#225c38";
+            ctx.fillRect(Math.round(p.x+s*.28),Math.round(p.y+s*.20),px*5,px*4);
+          } else if(cell.biome==="desert" && seed<6){
+            ctx.fillStyle=seed%2?"#d0ad69":"#8e713e";
+            ctx.fillRect(Math.round(p.x+s*.25),Math.round(p.y+s*.35),px*2,px);
+          } else if(cell.biome==="snow" && seed<5){
+            ctx.fillStyle=seed%2?"#f5ffff":"#a9c7ce";
+            ctx.fillRect(Math.round(p.x+s*.25),Math.round(p.y+s*.35),px*2,px);
+          } else if(cell.biome==="water"){
+            ctx.fillStyle=seed%2?"#4e86a1":"#244e6b";
+            ctx.fillRect(Math.round(p.x+s*.15),Math.round(p.y+s*.55),Math.max(2,px*4),px);
+          }
         }
       }
     }
@@ -194,14 +226,18 @@
       if(item.x<b.l||item.x>b.r||item.y<b.t||item.y>b.b) continue;
       const p=worldToScreen(item.x,item.y);
       const r=Math.max(3,7*state.camera.zoom);
+      const q=Math.max(2,Math.round(3*state.camera.zoom));
+      const X=Math.round(p.x),Y=Math.round(p.y);
       if(item.type==="food"){
-        ctx.fillStyle="#db5c50";ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
-        ctx.fillStyle="#75a75d";ctx.fillRect(p.x,p.y-r-3,2,4);
+        ctx.fillStyle="#8f2f2b";ctx.fillRect(X-q,Y-q,q*2,q*2);
+        ctx.fillStyle="#e45e4f";ctx.fillRect(X,Y-q,q,q*2);
+        ctx.fillStyle="#68a04e";ctx.fillRect(X,Y-q*2,q,q);
       } else if(item.type==="wood"){
-        ctx.fillStyle="#7a563a";ctx.fillRect(p.x-r,p.y-r*.5,r*2,r);
+        ctx.fillStyle="#4d3020";ctx.fillRect(X-q*2,Y-q,q*4,q*2);
+        ctx.fillStyle="#9a6840";ctx.fillRect(X-q,Y-q,q*2,q);
       } else {
-        ctx.fillStyle="#ddbb4f";ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
-        ctx.strokeStyle="#705a1c";ctx.stroke();
+        ctx.fillStyle="#8d6c20";ctx.fillRect(X-q,Y-q,q*2,q*2);
+        ctx.fillStyle="#f2cf58";ctx.fillRect(X,Y-q,q,q);
       }
     }
 
@@ -219,22 +255,85 @@
 
   function drawNpc(npc){
     const p=worldToScreen(npc.x,npc.y);
-    const r=clamp(8*state.camera.zoom,3.2,10);
-    ctx.fillStyle="rgba(0,0,0,.25)";
-    ctx.beginPath();ctx.ellipse(p.x+2,p.y+r*.7,r*1.1,r*.55,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=npc.flash? "#fff" : TRAIT_COLORS[npc.trait];
-    ctx.strokeStyle="#1e2a2e";ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
-    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(p.x+r*.28,p.y-r*.27,Math.max(1,1.5*state.camera.zoom),0,Math.PI*2);ctx.fill();
+    const z=clamp(state.camera.zoom,0.55,1.8);
+    const pix=Math.max(1,Math.round(2*z));
+    const scale = npc.age<13 ? .72 : npc.age>60 ? .90 : 1;
+    const w=Math.round(8*pix*scale), h=Math.round(12*pix*scale);
+    const x=Math.round(p.x-w/2), y=Math.round(p.y-h*.72);
+
+    ctx.imageSmoothingEnabled=false;
+    ctx.fillStyle="rgba(0,0,0,.28)";
+    ctx.fillRect(x+pix,y+h-pix,w-pix,pix*2);
+
+    // Legs / boots
+    ctx.fillStyle=npc.age<13?"#3f4b55":"#30383d";
+    ctx.fillRect(x+pix*2,y+pix*8,pix*2,pix*3);
+    ctx.fillRect(x+pix*5,y+pix*8,pix*2,pix*3);
+    ctx.fillStyle="#241e1a";
+    ctx.fillRect(x+pix,y+pix*10,pix*3,pix);
+    ctx.fillRect(x+pix*5,y+pix*10,pix*3,pix);
+
+    // Torso: job-dependent uniform
+    let shirt=npc.clothes;
+    if(npc.job==="farmer") shirt="#8b7745";
+    if(npc.job==="woodcutter") shirt="#7c4937";
+    if(npc.job==="miner") shirt="#555d66";
+    if(npc.job==="hunter") shirt="#3e6544";
+    if(npc.job==="soldier") shirt="#6d7378";
+    if(npc.job==="merchant") shirt="#76558b";
+    ctx.fillStyle=shirt;
+    ctx.fillRect(x+pix*1,y+pix*4,pix*6,pix*5);
+    ctx.fillStyle=npc.skin;
+    ctx.fillRect(x,y+pix*5,pix,pix*3);
+    ctx.fillRect(x+pix*7,y+pix*5,pix,pix*3);
+
+    // Head
+    ctx.fillStyle=npc.skin;
+    ctx.fillRect(x+pix*2,y+pix,pix*4,pix*4);
+
+    // Hair, different silhouettes
+    ctx.fillStyle=npc.age>62 ? "#c6c2b8" : npc.hair;
+    ctx.fillRect(x+pix*2,y,pix*4,pix);
+    if(npc.hairStyle===1 || npc.sex==="F") ctx.fillRect(x+pix,y+pix,pix,pix*3);
+    if(npc.hairStyle===2) ctx.fillRect(x+pix*6,y+pix,pix,pix*2);
+
+    // Eyes
+    ctx.fillStyle="#182026";
+    ctx.fillRect(x+pix*3,y+pix*2,pix,pix);
+    ctx.fillRect(x+pix*5,y+pix*2,pix,pix);
+
+    // Job equipment
+    if(npc.job==="farmer"){
+      ctx.fillStyle="#c4a85a";ctx.fillRect(x+pix,y,pix*6,pix);
+      ctx.fillRect(x+pix*2,y-pix,pix*4,pix);
+    } else if(npc.job==="miner"){
+      ctx.fillStyle="#d2a93f";ctx.fillRect(x+pix*2,y-pix,pix*4,pix);
+      ctx.fillStyle="#eee6a4";ctx.fillRect(x+pix*4,y-pix,pix,pix);
+    } else if(npc.job==="soldier"){
+      ctx.fillStyle="#858d91";ctx.fillRect(x+pix*2,y,pix*4,pix);
+      ctx.fillStyle="#aab1b4";ctx.fillRect(x+pix*7,y+pix*4,pix,pix*5);
+    } else if(npc.job==="woodcutter"){
+      ctx.fillStyle="#b9c1c4";ctx.fillRect(x+pix*7,y+pix*4,pix,pix*4);
+      ctx.fillStyle="#6b422b";ctx.fillRect(x+pix*6,y+pix*6,pix*3,pix);
+    } else if(npc.job==="hunter"){
+      ctx.fillStyle="#765132";ctx.fillRect(x+pix*7,y+pix*3,pix,pix*6);
+    } else if(npc.job==="merchant"){
+      ctx.fillStyle="#d1aa4b";ctx.fillRect(x+pix*2,y+pix*5,pix,pix);
+    }
+
+    if(npc.flash){
+      ctx.fillStyle="rgba(255,255,255,.55)";ctx.fillRect(x,y,w,h);
+    }
 
     if(state.selectedNpc===npc){
       ctx.strokeStyle="#fff";ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(p.x,p.y,r+6,0,Math.PI*2);ctx.stroke();
+      ctx.strokeRect(x-pix*2,y-pix*2,w+pix*4,h+pix*4);
       if(state.camera.zoom>.45){
-        ctx.font="600 12px system-ui";ctx.textAlign="center";
-        const w=ctx.measureText(npc.name).width+12;
-        ctx.fillStyle="rgba(0,0,0,.72)";ctx.fillRect(p.x-w/2,p.y-r-27,w,18);
-        ctx.fillStyle="#fff";ctx.fillText(npc.name,p.x,p.y-r-14);
+        ctx.font="600 12px monospace";ctx.textAlign="center";
+        const label=`${npc.name} · ${npc.sex} · ${npc.age} ans · ${JOB_LABELS[npc.job]}`;
+        const tw=ctx.measureText(label).width+12;
+        ctx.fillStyle="rgba(0,0,0,.78)";ctx.fillRect(p.x-tw/2,y-25,tw,18);
+        ctx.fillStyle="#fff";ctx.fillText(label,p.x,y-12);
       }
     }
   }
@@ -256,12 +355,15 @@
     if(Math.random()<.16 && state.items.length<700) addItem(pick(["food","food","wood","gold"]));
 
     for(const n of state.npcs){
-      n.age++;
+      if(state.tick%900===0) n.age++;
       n.hunger-=.022;
       n.flash=Math.max(0,n.flash-1);
 
       let goal=null;
       if(n.hunger<55) goal=nearestItem(n,"food");
+      else if(n.job==="farmer") goal=nearestItem(n,"food");
+      else if(n.job==="woodcutter") goal=nearestItem(n,"wood");
+      else if(n.job==="miner" || n.job==="merchant") goal=nearestItem(n,"gold");
       else if(n.trait==="greedy") goal=nearestItem(n,"gold");
       else if(n.trait==="explorer" && (!n.target || Math.random()<.01)) n.target={x:rand(0,WORLD_W),y:rand(0,WORLD_H)};
       else if(n.trait==="social" && Math.random()<.02 && state.npcs.length>1) goal=pick(state.npcs);
